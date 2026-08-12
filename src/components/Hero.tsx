@@ -1,109 +1,56 @@
 import Image from "next/image";
-import { siteConfig } from "@/data/site";
+
+const capabilities = ["מחשוב ורשתות", "ענן ואבטחה", "אתרים ומערכות"];
 
 export function Hero() {
   return (
-    <section
-      id="home"
-      className="relative min-h-[100svh] overflow-hidden pt-[76px]"
-      aria-labelledby="hero-title"
-    >
-      <div className="pointer-events-none absolute inset-0 grid-bg opacity-60" aria-hidden="true" />
-      <div
-        className="pointer-events-none absolute inset-0"
-        aria-hidden="true"
-        style={{
-          background:
-            "radial-gradient(circle at 70% 40%, rgba(56,189,248,0.16), transparent 35%), radial-gradient(circle at 20% 70%, rgba(2,132,199,0.12), transparent 40%)",
-        }}
-      />
+    <section id="home" className="hero-shell relative overflow-hidden pt-[76px]" aria-labelledby="hero-title">
+      <div className="pointer-events-none absolute inset-0 grid-bg opacity-50" aria-hidden="true" />
+      <div className="hero-orb hero-orb-one" aria-hidden="true" />
+      <div className="hero-orb hero-orb-two" aria-hidden="true" />
 
-      <svg
-        className="pointer-events-none absolute inset-0 h-full w-full opacity-40"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient id="circuitGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="#7dd3fc" stopOpacity="0.55" />
-          </linearGradient>
-        </defs>
-        <path
-          className="circuit-line"
-          d="M-20 180 H120 V280 H260 V140 H420"
-          fill="none"
-          stroke="url(#circuitGrad)"
-          strokeWidth="1.2"
-        />
-        <path
-          className="circuit-line"
-          d="M900 120 H720 V240 H560 V90 H380"
-          fill="none"
-          stroke="url(#circuitGrad)"
-          strokeWidth="1.2"
-          style={{ animationDelay: "1.5s" }}
-        />
-        <circle cx="120" cy="180" r="3" fill="#7dd3fc" opacity="0.8" />
-        <circle cx="260" cy="280" r="2.5" fill="#38bdf8" opacity="0.7" />
-        <circle cx="560" cy="240" r="3" fill="#7dd3fc" opacity="0.75" />
-      </svg>
-
-      <div className="container-site relative grid min-h-[calc(100svh-76px)] items-center gap-12 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:gap-8 lg:py-20">
-        <div className="max-w-2xl">
-          <p className="mb-4 text-sm font-semibold tracking-[0.2em] text-electric-bright/85">
-            {siteConfig.slogan}
-          </p>
-          <h1
-            id="hero-title"
-            className="text-balance text-4xl font-bold leading-[1.12] text-white sm:text-5xl lg:text-[3.35rem]"
-          >
-            פתרונות מחשוב שמקדמים אותך קדימה
-          </h1>
-          <p className="mt-5 text-pretty text-lg font-medium leading-relaxed text-silver sm:text-xl">
-            מחשוב, רשתות, אבטחת מידע, ענן, תמיכה טכנית, פיתוח ובניית אתרים -
-            הכל במקום אחד.
-          </p>
-          <p className="mt-4 max-w-xl text-pretty text-base leading-relaxed text-silver-muted">
-            באליה שירותי מחשוב אנחנו הופכים טכנולוגיה לפשוטה, מהירה ובטוחה יותר
-            עבור אנשים ועסקים.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a href="#contact" className="btn btn-primary">
-              לקבלת ייעוץ
-            </a>
-            <a href="#services" className="btn btn-secondary">
-              לכל השירותים
-            </a>
+      <div className="container-site relative grid min-h-[calc(100svh-76px)] items-center gap-14 py-16 lg:grid-cols-[1.15fr_.85fr] lg:py-24">
+        <div className="max-w-3xl">
+          <div className="hero-kicker">
+            <span className="hero-kicker-dot" />
+            מעטפת טכנולוגית אחת. שקט אמיתי לעסק.
           </div>
+          <h1 id="hero-title" className="mt-7 text-balance text-[clamp(2.8rem,7vw,5.7rem)] font-extrabold leading-[.95] tracking-[-0.045em] text-white">
+            טכנולוגיה שעובדת
+            <span className="hero-gradient block">בשבילכם.</span>
+          </h1>
+          <p className="mt-7 max-w-2xl text-pretty text-lg leading-8 text-silver sm:text-xl">
+            פתרונות מחשוב, תשתיות, אבטחת מידע, ענן ופיתוח דיגיטלי — מתוכננים נכון, מבוצעים בקפידה ומלווים באופן אישי גם אחרי ההשקה.
+          </p>
+
+          <div className="mt-9 flex flex-wrap gap-3">
+            <a href="#contact" className="btn btn-primary">בואו נבנה את הפתרון שלכם</a>
+            <a href="#services" className="btn btn-secondary">לכל השירותים</a>
+          </div>
+
+          <ul className="mt-10 flex flex-wrap gap-x-7 gap-y-3" aria-label="תחומי התמחות מרכזיים">
+            {capabilities.map((item) => (
+              <li key={item} className="flex items-center gap-2 text-sm font-medium text-silver">
+                <span className="h-1.5 w-1.5 rounded-full bg-electric shadow-[0_0_12px_rgba(56,189,248,.9)]" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-[380px] items-center justify-center sm:max-w-[440px] lg:max-w-none">
-          <div
-            className="absolute h-[70%] w-[70%] rounded-full opacity-70 blur-3xl"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(56,189,248,0.4), transparent 70%)",
-            }}
-            aria-hidden="true"
-          />
-
-          <div className="relative float-soft">
-            <div
-              className="orbit absolute inset-[-8%] rounded-full border border-electric/15"
-              aria-hidden="true"
-            >
-              <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-electric-bright shadow-[0_0_16px_rgba(125,211,252,0.9)]" />
+        <div className="relative mx-auto w-full max-w-[480px]">
+          <div className="hero-visual glass relative aspect-square overflow-hidden rounded-[2.25rem] p-6 sm:p-9">
+            <div className="absolute inset-0 grid-bg opacity-40" aria-hidden="true" />
+            <div className="relative flex h-full items-center justify-center">
+              <div className="absolute h-[78%] w-[78%] rounded-full border border-electric/15" />
+              <div className="absolute h-[58%] w-[58%] rounded-full border border-electric/25" />
+              <Image src="/logos/logo-for-dark.jpg" alt="אליה שירותי מחשוב" width={640} height={640} priority sizes="(max-width: 768px) 75vw, 420px" className="relative z-10 w-[72%] rounded-full shadow-[0_0_70px_rgba(14,165,233,.32)]" />
+              <span className="status-pill absolute bottom-1 right-1">זמינים לפרויקט הבא</span>
             </div>
-
-            <Image
-              src="/logos/logo-for-dark.jpg"
-              alt="לוגו אליה שירותי מחשוב"
-              width={640}
-              height={640}
-              priority
-              sizes="(max-width: 640px) 280px, 400px"
-              className="relative z-10 h-auto w-full max-w-[300px] rounded-full shadow-[0_0_50px_rgba(14,165,233,0.28)] sm:max-w-[380px]"
-            />
+          </div>
+          <div className="absolute -bottom-5 -left-3 rounded-2xl border border-white/10 bg-[#081321]/90 px-5 py-4 shadow-2xl backdrop-blur-xl sm:-left-8">
+            <span className="block text-2xl font-extrabold text-white">6 חודשים</span>
+            <span className="text-sm text-silver-muted">ליווי לאחר ההשקה</span>
           </div>
         </div>
       </div>
