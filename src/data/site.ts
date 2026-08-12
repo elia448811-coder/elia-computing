@@ -2,7 +2,7 @@ export const siteConfig = {
   name: "אליה שירותי מחשוב",
   nameEn: "Elia Computing Services",
   slogan: "הופכים חלומות למציאות",
-  url: process.env.NEXT_PUBLIC_SITE_URL || "https://elia-computing.vercel.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://elia-computing.vercel.app",
   locale: "he_IL",
   title:
     "אליה שירותי מחשוב | פתרונות מחשוב, רשתות, אבטחה, פיתוח ובניית אתרים",
