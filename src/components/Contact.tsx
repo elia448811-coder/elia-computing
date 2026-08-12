@@ -115,7 +115,7 @@ export function Contact() {
             align="start"
             eyebrow="צור קשר"
             title="בואו נדבר על מה שצריך לפתור"
-            description="השאירו פרטים והפנייה תגיע ישירות אלינו. אפשר גם לפנות בוואטסאפ אם המספר מוגדר."
+            description="השאירו פרטים והפנייה תגיע ישירות אלינו."
           />
 
           <div className="mt-8 space-y-3 text-sm text-silver-muted">
