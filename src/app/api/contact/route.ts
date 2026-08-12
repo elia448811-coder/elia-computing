@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { serviceTypeOptions } from "@/data/content";
@@ -15,6 +15,8 @@ const MAX = {
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 5;
+const COOKIE_NAME = "elia_cf_rl";
+const HONEYPOT_FIELD = "_hp_cf";
 
 type ContactBody = {
   fullName?: string;
@@ -22,7 +24,7 @@ type ContactBody = {
   email?: string;
   serviceType?: string;
   message?: string;
-  website?: string; // honeypot
+  [HONEYPOT_FIELD]?: string;
 };
 
 const rateBucket = new Map<string, { count: number; resetAt: number }>();
@@ -43,7 +45,50 @@ function getClientIp(request: Request) {
   return request.headers.get("x-real-ip")?.trim() || "unknown";
 }
 
-function isRateLimited(ip: string) {
+function getRateSecret() {
+  return (
+    process.env.CONTACT_RATE_SECRET ||
+    process.env.RESEND_API_KEY ||
+    "elia-contact-rate-fallback"
+  );
+}
+
+function signTimestamp(timestamp: number) {
+  return createHmac("sha256", getRateSecret())
+    .update(String(timestamp))
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function readRateCookie(request: Request) {
+  const cookieHeader = request.headers.get("cookie") || "";
+  const match = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${COOKIE_NAME}=`));
+
+  if (!match) return null;
+
+  const raw = decodeURIComponent(match.slice(COOKIE_NAME.length + 1));
+  const [timestampRaw, signature] = raw.split(".");
+  const timestamp = Number(timestampRaw);
+  if (!timestamp || !signature || Number.isNaN(timestamp)) return null;
+
+  const expected = signTimestamp(timestamp);
+  try {
+    const left = Buffer.from(signature);
+    const right = Buffer.from(expected);
+    if (left.length !== right.length || !timingSafeEqual(left, right)) {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+
+  return timestamp;
+}
+
+function isMemoryRateLimited(ip: string) {
   const now = Date.now();
   const current = rateBucket.get(ip);
 
@@ -61,16 +106,40 @@ function isRateLimited(ip: string) {
   return false;
 }
 
+function isCookieRateLimited(request: Request) {
+  const stampedAt = readRateCookie(request);
+  if (!stampedAt) return false;
+  return Date.now() - stampedAt < RATE_LIMIT_WINDOW_MS;
+}
+
+function withRateCookie(response: NextResponse) {
+  const timestamp = Date.now();
+  const value = `${timestamp}.${signTimestamp(timestamp)}`;
+  response.cookies.set({
+    name: COOKIE_NAME,
+    value,
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: Math.ceil(RATE_LIMIT_WINDOW_MS / 1000),
+  });
+  return response;
+}
+
 function isAllowedOrigin(request: Request) {
   const origin = request.headers.get("origin");
-  if (!origin) return true; // same-origin navigations / some clients omit Origin
+  if (!origin) return true;
 
   try {
     const allowed = new URL(siteConfig.url).origin;
     const requestOrigin = new URL(origin).origin;
     if (requestOrigin === allowed) return true;
     if (requestOrigin === "http://localhost:3000") return true;
-    if (requestOrigin.endsWith(".vercel.app") && requestOrigin.includes("elia-computing")) {
+    if (
+      requestOrigin.endsWith(".vercel.app") &&
+      requestOrigin.includes("elia-computing")
+    ) {
       return true;
     }
   } catch {
@@ -85,8 +154,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "בקשה לא מורשית" }, { status: 403 });
   }
 
+  if (isCookieRateLimited(request)) {
+    return NextResponse.json(
+      { error: "נשלחו יותר מדי פניות. נסו שוב בעוד דקה." },
+      { status: 429 },
+    );
+  }
+
   const ip = getClientIp(request);
-  if (isRateLimited(ip)) {
+  if (isMemoryRateLimited(ip)) {
     return NextResponse.json(
       { error: "נשלחו יותר מדי פניות. נסו שוב בעוד דקה." },
       { status: 429 },
@@ -101,9 +177,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
   }
 
-  // Honeypot: bots often fill hidden fields
-  if (body.website && body.website.trim() !== "") {
-    return NextResponse.json({ ok: true });
+  // Obscure honeypot — not a common autofill target
+  if ((body[HONEYPOT_FIELD] ?? "").trim() !== "") {
+    return NextResponse.json({ ok: true, delivered: false });
   }
 
   const fullName = body.fullName?.trim() ?? "";
@@ -135,26 +211,16 @@ export async function POST(request: Request) {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "שירות המייל אינו מוגדר כרגע" },
-      { status: 500 },
-    );
-  }
-
   const toEmail =
     process.env.CONTACT_TO_EMAIL?.trim() || siteConfig.contact.email;
+  const fromEmail = process.env.CONTACT_FROM_EMAIL?.trim();
 
-  if (!toEmail) {
+  if (!apiKey || !toEmail || !fromEmail) {
     return NextResponse.json(
       { error: "שירות המייל אינו מוגדר כרגע" },
       { status: 500 },
     );
   }
-
-  const fromEmail =
-    process.env.CONTACT_FROM_EMAIL?.trim() ||
-    "אליה שירותי מחשוב <noreply@hanaasher-finance.com>";
 
   const resend = new Resend(apiKey);
   const fingerprint = createHash("sha256")
@@ -203,7 +269,7 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true });
+  return withRateCookie(NextResponse.json({ ok: true, delivered: true }));
 }
 
 function escapeHtml(value: string) {

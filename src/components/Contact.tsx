@@ -12,7 +12,7 @@ type FormState = {
   email: string;
   serviceType: string;
   message: string;
-  website: string;
+  _hp_cf: string;
 };
 
 const initialState: FormState = {
@@ -21,7 +21,7 @@ const initialState: FormState = {
   email: "",
   serviceType: "",
   message: "",
-  website: "",
+  _hp_cf: "",
 };
 
 function isValidEmail(value: string) {
@@ -88,11 +88,18 @@ export function Contact() {
 
       const payload = (await response.json().catch(() => ({}))) as {
         error?: string;
+        delivered?: boolean;
       };
 
       if (!response.ok) {
         setStatus("error");
         setServerError(payload.error || "שליחת הפנייה נכשלה");
+        return;
+      }
+
+      if (payload.delivered === false) {
+        setStatus("error");
+        setServerError("שליחת הפנייה נכשלה. נסו שוב.");
         return;
       }
 
@@ -159,14 +166,14 @@ export function Contact() {
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true">
-                <label htmlFor="website">אתר</label>
+                <label htmlFor="_hp_cf">השאר ריק</label>
                 <input
-                  id="website"
-                  name="website"
+                  id="_hp_cf"
+                  name="_hp_cf"
                   tabIndex={-1}
                   autoComplete="off"
-                  value={form.website}
-                  onChange={(e) => setForm((s) => ({ ...s, website: e.target.value }))}
+                  value={form._hp_cf}
+                  onChange={(e) => setForm((s) => ({ ...s, _hp_cf: e.target.value }))}
                 />
               </div>
               <div className="sm:col-span-1">
