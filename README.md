@@ -26,7 +26,10 @@ npm run dev
 
 ## לוגו
 
-קבצי הלוגו נמצאים ב-`public/logos/`. ניתן להחליף בגרסאות המקוריות (כהה / בהירה / סמל).
+קבצי הלוגו נמצאים ב-`public/logos/`:
+
+- `logo-for-dark.jpg` — לשימוש על רקע כהה (Header / Hero / Footer)
+- `logo-for-light.jpg` — לשימוש על רקע בהיר
 
 ## פריסה
 

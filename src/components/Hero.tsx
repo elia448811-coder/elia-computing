@@ -77,61 +77,33 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-[420px] items-center justify-center lg:max-w-none">
+        <div className="relative mx-auto flex w-full max-w-[380px] items-center justify-center sm:max-w-[440px] lg:max-w-none">
           <div
-            className="absolute h-[78%] w-[78%] rounded-full opacity-60 blur-3xl"
+            className="absolute h-[70%] w-[70%] rounded-full opacity-70 blur-3xl"
             style={{
               background:
-                "radial-gradient(circle, rgba(56,189,248,0.35), transparent 70%)",
+                "radial-gradient(circle, rgba(56,189,248,0.4), transparent 70%)",
             }}
             aria-hidden="true"
           />
 
           <div className="relative float-soft">
-            <div className="orbit absolute inset-[-12%] rounded-full border border-electric/20" aria-hidden="true">
-              <span className="absolute -top-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-electric-bright shadow-[0_0_18px_rgba(125,211,252,0.9)]" />
-            </div>
             <div
-              className="orbit absolute inset-[-22%] rounded-full border border-dashed border-electric/15"
-              style={{ animationDuration: "40s", animationDirection: "reverse" }}
+              className="orbit absolute inset-[-8%] rounded-full border border-electric/15"
               aria-hidden="true"
             >
-              <span className="absolute bottom-4 left-8 h-2 w-2 rounded-full bg-electric/80" />
+              <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-electric-bright shadow-[0_0_16px_rgba(125,211,252,0.9)]" />
             </div>
 
-            <div className="glass relative overflow-hidden rounded-full p-6 sm:p-8">
-              <Image
-                src="/logos/logo-mark.svg"
-                alt="לוגו אליה שירותי מחשוב"
-                width={320}
-                height={320}
-                priority
-                className="relative z-10 h-auto w-full max-w-[280px] sm:max-w-[320px]"
-              />
-              <svg
-                className="pointer-events-none absolute inset-0 opacity-50"
-                viewBox="0 0 320 320"
-                aria-hidden="true"
-              >
-                <path
-                  className="circuit-line"
-                  d="M40 80 H120 V160 H220"
-                  fill="none"
-                  stroke="#7dd3fc"
-                  strokeWidth="1"
-                  opacity="0.5"
-                />
-                <path
-                  className="circuit-line"
-                  d="M280 220 H200 V120"
-                  fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth="1"
-                  opacity="0.45"
-                  style={{ animationDelay: "2s" }}
-                />
-              </svg>
-            </div>
+            <Image
+              src="/logos/logo-for-dark.jpg"
+              alt="לוגו אליה שירותי מחשוב"
+              width={640}
+              height={640}
+              priority
+              sizes="(max-width: 640px) 280px, 400px"
+              className="relative z-10 h-auto w-full max-w-[300px] rounded-full shadow-[0_0_50px_rgba(14,165,233,0.28)] sm:max-w-[380px]"
+            />
           </div>
         </div>
       </div>

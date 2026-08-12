@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: [
       {
-        url: "/og.svg",
+        url: "/logos/logo-for-dark.jpg",
         width: 1200,
-        height: 630,
+        height: 1200,
         alt: siteConfig.name,
       },
     ],
@@ -43,15 +43,15 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteConfig.title,
     description: siteConfig.description,
-    images: ["/og.svg"],
+    images: ["/logos/logo-for-dark.jpg"],
   },
   robots: {
     index: true,
     follow: true,
   },
   icons: {
-    icon: "/logos/logo-mark.svg",
-    apple: "/logos/logo-mark.svg",
+    icon: "/logos/logo-for-dark.jpg",
+    apple: "/logos/logo-for-dark.jpg",
   },
 };
 
@@ -62,7 +62,7 @@ function JsonLd() {
     name: siteConfig.name,
     description: siteConfig.description,
     url: siteConfig.url,
-    image: `${siteConfig.url}/logos/logo-mark.svg`,
+    image: `${siteConfig.url}/logos/logo-for-dark.jpg`,
     slogan: siteConfig.slogan,
     areaServed: "IL",
     availableLanguage: ["he"],

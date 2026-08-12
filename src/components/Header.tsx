@@ -38,7 +38,12 @@ export function Header() {
           className="flex items-center gap-3"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
         >
-          <Logo variant="compact" className="h-11 w-11" priority />
+          <Logo
+            variant="for-dark"
+            className="h-12 w-12 rounded-full object-cover sm:h-14 sm:w-14"
+            priority
+            sizes="56px"
+          />
           <span className="hidden text-sm font-bold leading-tight text-white sm:block sm:text-base">
             {siteConfig.name}
           </span>
