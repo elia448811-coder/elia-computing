@@ -159,20 +159,3 @@ export const serviceTypeOptions = [
   "ייעוץ",
   "אחר",
 ] as const;
-
-/**
- * הוסיפו פרויקטים כאן כשיהיו מוכנים.
- * אל תמציאו לקוחות או פרויקטים.
- */
-export type Project = {
-  id: string;
-  title: string;
-  description: string;
-  image: string;
-  technologies: string[];
-  challenge: string;
-  solution: string;
-  href?: string;
-};
-
-export const projects: Project[] = [];

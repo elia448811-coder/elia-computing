@@ -20,10 +20,6 @@ npm run dev
 - `NEXT_PUBLIC_WHATSAPP` (מספר בינלאומי ללא `+`, למשל `9725XXXXXXXX`)
 - `NEXT_PUBLIC_SITE_URL`
 
-## הוספת פרויקטים
-
-ערכו את המערך `projects` בתוך `src/data/content.ts`.
-
 ## לוגו
 
 קבצי הלוגו נמצאים ב-`public/logos/`:

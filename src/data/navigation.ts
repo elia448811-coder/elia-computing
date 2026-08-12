@@ -4,7 +4,6 @@ export const navLinks = [
   { href: "#services", label: "שירותים" },
   { href: "#business", label: "פתרונות לעסקים" },
   { href: "#websites", label: "בניית אתרים" },
-  { href: "#projects", label: "עבודות / פרויקטים" },
   { href: "#faq", label: "שאלות נפוצות" },
   { href: "#contact", label: "צור קשר" },
 ] as const;
@@ -14,7 +13,6 @@ export const footerQuickLinks = [
   { href: "#services", label: "שירותים" },
   { href: "#process", label: "תהליך עבודה" },
   { href: "#why-us", label: "למה אנחנו" },
-  { href: "#projects", label: "פרויקטים" },
   { href: "#contact", label: "צור קשר" },
 ] as const;
 

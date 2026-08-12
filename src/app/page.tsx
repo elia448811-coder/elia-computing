@@ -5,7 +5,6 @@ import { CTABanner } from "@/components/CTABanner";
 import { FAQ } from "@/components/FAQ";
 import { Hero } from "@/components/Hero";
 import { Process } from "@/components/Process";
-import { Projects } from "@/components/Projects";
 import { Services } from "@/components/Services";
 import { Statistics } from "@/components/Statistics";
 import { TrustBar } from "@/components/TrustBar";
@@ -24,7 +23,6 @@ export default function Home() {
       <Process />
       <WhyUs />
       <Statistics />
-      <Projects />
       <FAQ />
       <CTABanner />
       <Contact />
