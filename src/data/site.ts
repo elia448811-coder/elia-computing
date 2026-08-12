@@ -9,11 +9,11 @@ export const siteConfig = {
   description:
     "אליה שירותי מחשוב - פתרונות מחשוב מתקדמים ללקוחות פרטיים ולעסקים: תמיכה טכנית, רשתות, אבטחת מידע, ענן, פיתוח תוכנה, בניית אתרים ודפי נחיתה.",
   contact: {
-    // עדכנו כאן את פרטי הקשר — אל תמציאו ערכים
-    phone: process.env.NEXT_PUBLIC_PHONE || "",
-    email: process.env.NEXT_PUBLIC_EMAIL || "",
-    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP || "", // מספר בינלאומי ללא +, למשל 9725XXXXXXXX
-    address: process.env.NEXT_PUBLIC_ADDRESS || "",
+    // עדכון דרך משתני סביבה ב-Vercel / .env.local
+    phone: process.env.NEXT_PUBLIC_PHONE ?? "",
+    email: process.env.NEXT_PUBLIC_EMAIL ?? "elia448811@gmail.com",
+    whatsapp: process.env.NEXT_PUBLIC_WHATSAPP ?? "", // מספר בינלאומי ללא +, למשל 9725XXXXXXXX
+    address: process.env.NEXT_PUBLIC_ADDRESS ?? "",
   },
   social: {
     // אופציונלי — השאירו ריק אם אין
