@@ -34,6 +34,8 @@ export function Contact() {
   const [form, setForm] = useState<FormState>(initialState);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const whatsappHref = useMemo(() => {
     if (!siteConfig.contact.whatsapp) return "";
@@ -63,29 +65,43 @@ export function Contact() {
     return next;
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextErrors = validate(form);
     setErrors(nextErrors);
+    setServerError("");
 
     if (Object.keys(nextErrors).length > 0) {
       setStatus("error");
       return;
     }
 
-    const subject = encodeURIComponent(`פנייה מהאתר - ${form.serviceType}`);
-    const body = encodeURIComponent(
-      `שם: ${form.fullName}\nטלפון: ${form.phone}\nאימייל: ${form.email}\nסוג שירות: ${form.serviceType}\n\nהודעה:\n${form.message}`,
-    );
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
 
-    if (siteConfig.contact.email) {
-      window.location.href = `mailto:${siteConfig.contact.email}?subject=${subject}&body=${body}`;
-    } else if (siteConfig.contact.whatsapp) {
-      window.open(whatsappHref, "_blank", "noopener,noreferrer");
+      const payload = (await response.json().catch(() => ({}))) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setStatus("error");
+        setServerError(payload.error || "שליחת הפנייה נכשלה");
+        return;
+      }
+
+      setStatus("success");
+      setForm(initialState);
+    } catch {
+      setStatus("error");
+      setServerError("שגיאת רשת. נסו שוב.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setStatus("success");
-    setForm(initialState);
   }
 
   const fieldClass =
@@ -99,7 +115,7 @@ export function Contact() {
             align="start"
             eyebrow="צור קשר"
             title="בואו נדבר על מה שצריך לפתור"
-            description="השאירו פרטים ונחזור אליכם. אפשר גם לפנות בוואטסאפ אם המספר מוגדר בהגדרות האתר."
+            description="השאירו פרטים והפנייה תגיע ישירות אלינו. אפשר גם לפנות בוואטסאפ אם המספר מוגדר."
           />
 
           <div className="mt-8 space-y-3 text-sm text-silver-muted">
@@ -120,17 +136,6 @@ export function Contact() {
               </p>
             ) : null}
             {siteConfig.contact.address ? <p>כתובת: {siteConfig.contact.address}</p> : null}
-            {!siteConfig.contact.phone &&
-            !siteConfig.contact.email &&
-            !siteConfig.contact.whatsapp ? (
-              <p>
-                פרטי הקשר מוגדרים ב-
-                <code className="mx-1 rounded bg-white/5 px-1.5 py-0.5 text-electric-bright">
-                  src/data/site.ts
-                </code>
-                או במשתני סביבה.
-              </p>
-            ) : null}
             {whatsappHref ? (
               <a
                 href={whatsappHref}
@@ -252,18 +257,24 @@ export function Contact() {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary mt-6 w-full sm:w-auto">
-              שליחת פנייה
+            <button
+              type="submit"
+              className="btn btn-primary mt-6 w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={submitting}
+            >
+              {submitting ? "שולח..." : "שליחת פנייה"}
             </button>
 
             <div className="mt-4 min-h-[1.5rem]" aria-live="polite">
               {status === "success" ? (
                 <p className="text-sm text-electric-bright">
-                  תודה! הפרטים התקבלו. אם הוגדר אימייל או וואטסאפ — תיפתח שליחה אוטומטית.
+                  תודה! הפנייה נשלחה בהצלחה ונחזור אליכם בהקדם.
                 </p>
               ) : null}
               {status === "error" ? (
-                <p className="text-sm text-red-300">נא לתקן את השדות המסומנים.</p>
+                <p className="text-sm text-red-300">
+                  {serverError || "נא לתקן את השדות המסומנים."}
+                </p>
               ) : null}
             </div>
           </form>
