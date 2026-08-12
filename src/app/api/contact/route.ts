@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
   const fromEmail =
     process.env.CONTACT_FROM_EMAIL?.trim() ||
-    "אליה שירותי מחשוב <onboarding@resend.dev>";
+    "אליה שירותי מחשוב <noreply@hanaasher-finance.com>";
 
   const resend = new Resend(apiKey);
   const idempotencyKey = `contact-form/${Date.now()}-${email.slice(0, 32)}`;
