@@ -12,6 +12,7 @@ type FormState = {
   email: string;
   serviceType: string;
   message: string;
+  website: string;
 };
 
 const initialState: FormState = {
@@ -20,6 +21,7 @@ const initialState: FormState = {
   email: "",
   serviceType: "",
   message: "",
+  website: "",
 };
 
 function isValidEmail(value: string) {
@@ -151,11 +153,22 @@ export function Contact() {
 
         <Reveal delayMs={100}>
           <form
-            className="glass rounded-[var(--radius-xl)] p-6 sm:p-8"
+            className="glass relative rounded-[var(--radius-xl)] p-6 sm:p-8"
             onSubmit={onSubmit}
             noValidate
           >
             <div className="grid gap-4 sm:grid-cols-2">
+              <div className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true">
+                <label htmlFor="website">אתר</label>
+                <input
+                  id="website"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={form.website}
+                  onChange={(e) => setForm((s) => ({ ...s, website: e.target.value }))}
+                />
+              </div>
               <div className="sm:col-span-1">
                 <label htmlFor="fullName" className="mb-2 block text-sm font-medium text-silver">
                   שם מלא
@@ -164,6 +177,7 @@ export function Contact() {
                   id="fullName"
                   name="fullName"
                   autoComplete="name"
+                  maxLength={80}
                   className={fieldClass}
                   value={form.fullName}
                   onChange={(e) => setForm((s) => ({ ...s, fullName: e.target.value }))}
@@ -183,6 +197,7 @@ export function Contact() {
                   name="phone"
                   type="tel"
                   autoComplete="tel"
+                  maxLength={20}
                   className={fieldClass}
                   value={form.phone}
                   onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
@@ -202,6 +217,7 @@ export function Contact() {
                   name="email"
                   type="email"
                   autoComplete="email"
+                  maxLength={254}
                   className={fieldClass}
                   value={form.email}
                   onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
@@ -246,6 +262,7 @@ export function Contact() {
                   id="message"
                   name="message"
                   rows={5}
+                  maxLength={2000}
                   className={`${fieldClass} resize-y`}
                   value={form.message}
                   onChange={(e) => setForm((s) => ({ ...s, message: e.target.value }))}
