@@ -11,7 +11,7 @@ export const siteConfig = {
   contact: {
     // עדכון דרך משתני סביבה ב-Vercel / .env.local
     phone: process.env.NEXT_PUBLIC_PHONE ?? "",
-    email: process.env.NEXT_PUBLIC_EMAIL ?? "elia448811@gmail.com",
+    email: process.env.NEXT_PUBLIC_EMAIL ?? "",
     whatsapp: process.env.NEXT_PUBLIC_WHATSAPP ?? "", // מספר בינלאומי ללא +, למשל 9725XXXXXXXX
     address: process.env.NEXT_PUBLIC_ADDRESS ?? "",
   },
