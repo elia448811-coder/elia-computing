@@ -5,7 +5,7 @@ export function CTABanner() {
     <section className="section-y relative pt-0" aria-labelledby="cta-title">
       <div className="container-site">
         <Reveal>
-          <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-6 py-14 text-center sm:px-10">
+          <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-5 py-10 text-center sm:px-10 sm:py-14">
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden="true"
@@ -17,14 +17,14 @@ export function CTABanner() {
             <div className="relative">
               <h2
                 id="cta-title"
-                className="text-balance text-3xl font-bold text-white sm:text-4xl"
+                className="text-balance text-[1.65rem] font-bold text-white sm:text-4xl"
               >
                 יש לכם רעיון? תקלה? פרויקט?
               </h2>
-              <p className="mt-4 text-lg font-semibold text-electric-bright">
+              <p className="mt-3 text-base font-semibold text-electric-bright sm:mt-4 sm:text-lg">
                 בואו נהפוך אותו לפתרון.
               </p>
-              <a href="#contact" className="btn btn-primary mt-8">
+              <a href="#contact" className="btn btn-primary btn-stack-mobile mt-6 sm:mt-8">
                 דברו איתי עכשיו
               </a>
             </div>

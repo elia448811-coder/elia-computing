@@ -45,6 +45,7 @@ export function Logo({
       height={asset.height}
       className={className}
       priority={priority}
+      loading={priority ? "eager" : "lazy"}
       sizes={sizes}
     />
   );

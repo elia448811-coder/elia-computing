@@ -18,7 +18,7 @@ export function FAQ() {
           />
         </Reveal>
 
-        <div className="mt-10 space-y-3">
+        <div className="mt-8 space-y-2.5 sm:mt-10 sm:space-y-3">
           {faqItems.map((item, index) => {
             const isOpen = openIndex === index;
             const panelId = `faq-panel-${index}`;
@@ -31,14 +31,14 @@ export function FAQ() {
                     <button
                       id={buttonId}
                       type="button"
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start text-base font-semibold text-white"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-start text-[0.95rem] font-semibold text-white sm:gap-4 sm:px-5 sm:py-4 sm:text-base"
                       aria-expanded={isOpen}
                       aria-controls={panelId}
                       onClick={() => setOpenIndex(isOpen ? null : index)}
                     >
                       <span>{item.question}</span>
                       <span
-                        className={`text-electric-bright transition ${isOpen ? "rotate-45" : ""}`}
+                        className={`shrink-0 text-electric-bright transition ${isOpen ? "rotate-45" : ""}`}
                         aria-hidden="true"
                       >
                         +
@@ -50,7 +50,7 @@ export function FAQ() {
                     role="region"
                     aria-labelledby={buttonId}
                     hidden={!isOpen}
-                    className="px-5 pb-5 text-sm leading-relaxed text-silver-muted"
+                    className="px-4 pb-4 text-sm leading-relaxed text-silver-muted sm:px-5 sm:pb-5"
                   >
                     {item.answer}
                   </div>

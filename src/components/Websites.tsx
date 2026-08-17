@@ -6,7 +6,7 @@ export function Websites() {
   return (
     <section id="websites" className="section-y relative" aria-labelledby="websites-title">
       <div className="container-site">
-        <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-6 py-12 sm:px-10 lg:px-14 lg:py-16">
+        <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-5 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-16">
           <div
             className="pointer-events-none absolute inset-0"
             aria-hidden="true"
@@ -17,7 +17,7 @@ export function Websites() {
           />
           <div className="pointer-events-none absolute inset-0 grid-bg opacity-40" aria-hidden="true" />
 
-          <div className="relative grid gap-10 lg:grid-cols-[1fr_1fr] lg:items-center">
+          <div className="relative grid gap-8 lg:grid-cols-[1fr_1fr] lg:items-center lg:gap-10">
             <Reveal>
               <SectionHeading
                 align="start"
@@ -25,17 +25,17 @@ export function Websites() {
                 title={websitesContent.title}
                 description={websitesContent.text}
               />
-              <a href="#contact" className="btn btn-primary mt-8">
+              <a href="#contact" className="btn btn-primary btn-stack-mobile mt-7 sm:mt-8">
                 {websitesContent.cta}
               </a>
             </Reveal>
 
             <Reveal delayMs={120}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
                 {websitesContent.features.map((feature) => (
                   <div
                     key={feature}
-                    className="rounded-2xl border border-white/10 bg-[#050a14]/45 px-4 py-4 text-sm font-semibold text-silver backdrop-blur-sm transition hover:border-electric/40 hover:text-white hover:shadow-[var(--glow)]"
+                    className="rounded-2xl border border-white/10 bg-[#050a14]/45 px-3 py-3.5 text-xs font-semibold leading-snug text-silver backdrop-blur-sm transition hover:border-electric/40 hover:text-white hover:shadow-[var(--glow)] sm:px-4 sm:py-4 sm:text-sm"
                   >
                     {feature}
                   </div>

@@ -39,6 +39,12 @@ export function Contact() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
 
+  function updateField<K extends keyof FormState>(field: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+    if (status !== "idle") setStatus("idle");
+  }
+
   const whatsappHref = useMemo(() => {
     if (!siteConfig.contact.whatsapp) return "";
     const text = encodeURIComponent(
@@ -118,7 +124,7 @@ export function Contact() {
 
   return (
     <section id="contact" className="section-y relative" aria-labelledby="contact-title">
-      <div className="container-site grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+      <div className="container-site grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-10">
         <Reveal>
           <SectionHeading
             align="start"
@@ -127,7 +133,7 @@ export function Contact() {
             description="השאירו פרטים והפנייה תגיע ישירות אלינו."
           />
 
-          <div className="mt-8 space-y-3 text-sm text-silver-muted">
+          <div className="mt-6 space-y-3 text-sm text-silver-muted sm:mt-8">
             {siteConfig.contact.phone ? (
               <p>
                 טלפון:{" "}
@@ -150,7 +156,7 @@ export function Contact() {
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn btn-secondary mt-4"
+                className="btn btn-secondary btn-stack-mobile mt-4"
               >
                 שליחה בוואטסאפ
               </a>
@@ -160,9 +166,10 @@ export function Contact() {
 
         <Reveal delayMs={100}>
           <form
-            className="glass relative rounded-[var(--radius-xl)] p-6 sm:p-8"
+            className="glass relative rounded-[var(--radius-xl)] p-5 sm:p-8"
             onSubmit={onSubmit}
             noValidate
+            aria-busy={submitting}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="absolute -left-[9999px] h-0 w-0 overflow-hidden" aria-hidden="true">
@@ -173,7 +180,7 @@ export function Contact() {
                   tabIndex={-1}
                   autoComplete="off"
                   value={form._hp_cf}
-                  onChange={(e) => setForm((s) => ({ ...s, _hp_cf: e.target.value }))}
+                  onChange={(e) => updateField("_hp_cf", e.target.value)}
                 />
               </div>
               <div className="sm:col-span-1">
@@ -187,11 +194,13 @@ export function Contact() {
                   maxLength={80}
                   className={fieldClass}
                   value={form.fullName}
-                  onChange={(e) => setForm((s) => ({ ...s, fullName: e.target.value }))}
+                  onChange={(e) => updateField("fullName", e.target.value)}
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? "fullName-error" : undefined}
                   required
                 />
                 {errors.fullName ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.fullName}</p>
+                  <p id="fullName-error" className="mt-1 text-xs text-red-300">{errors.fullName}</p>
                 ) : null}
               </div>
 
@@ -207,11 +216,14 @@ export function Contact() {
                   maxLength={20}
                   className={fieldClass}
                   value={form.phone}
-                  onChange={(e) => setForm((s) => ({ ...s, phone: e.target.value }))}
+                  onChange={(e) => updateField("phone", e.target.value)}
+                  inputMode="tel"
+                  aria-invalid={Boolean(errors.phone)}
+                  aria-describedby={errors.phone ? "phone-error" : undefined}
                   required
                 />
                 {errors.phone ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.phone}</p>
+                  <p id="phone-error" className="mt-1 text-xs text-red-300">{errors.phone}</p>
                 ) : null}
               </div>
 
@@ -227,11 +239,14 @@ export function Contact() {
                   maxLength={254}
                   className={fieldClass}
                   value={form.email}
-                  onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))}
+                  onChange={(e) => updateField("email", e.target.value)}
+                  inputMode="email"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                   required
                 />
                 {errors.email ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.email}</p>
+                  <p id="email-error" className="mt-1 text-xs text-red-300">{errors.email}</p>
                 ) : null}
               </div>
 
@@ -244,7 +259,9 @@ export function Contact() {
                   name="serviceType"
                   className={fieldClass}
                   value={form.serviceType}
-                  onChange={(e) => setForm((s) => ({ ...s, serviceType: e.target.value }))}
+                  onChange={(e) => updateField("serviceType", e.target.value)}
+                  aria-invalid={Boolean(errors.serviceType)}
+                  aria-describedby={errors.serviceType ? "serviceType-error" : undefined}
                   required
                 >
                   <option value="" disabled>
@@ -257,7 +274,7 @@ export function Contact() {
                   ))}
                 </select>
                 {errors.serviceType ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.serviceType}</p>
+                  <p id="serviceType-error" className="mt-1 text-xs text-red-300">{errors.serviceType}</p>
                 ) : null}
               </div>
 
@@ -272,18 +289,20 @@ export function Contact() {
                   maxLength={2000}
                   className={`${fieldClass} resize-y`}
                   value={form.message}
-                  onChange={(e) => setForm((s) => ({ ...s, message: e.target.value }))}
+                  onChange={(e) => updateField("message", e.target.value)}
+                  aria-invalid={Boolean(errors.message)}
+                  aria-describedby={errors.message ? "message-error" : undefined}
                   required
                 />
                 {errors.message ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.message}</p>
+                  <p id="message-error" className="mt-1 text-xs text-red-300">{errors.message}</p>
                 ) : null}
               </div>
             </div>
 
             <button
               type="submit"
-              className="btn btn-primary mt-6 w-full sm:w-auto disabled:cursor-not-allowed disabled:opacity-70"
+              className="btn btn-primary mt-6 w-full disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
               disabled={submitting}
             >
               {submitting ? "שולח..." : "שליחת פנייה"}

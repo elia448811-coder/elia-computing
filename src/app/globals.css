@@ -20,10 +20,27 @@
   --radius-lg: 24px;
   --radius-xl: 32px;
   --container: 1180px;
-  --header-h: 76px;
-  --section-y: clamp(4.5rem, 8vw, 7.5rem);
+  --header-h: 64px;
+  --section-y: clamp(3.25rem, 7vw, 7.5rem);
+  --container-pad: 1.15rem;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
   --background: var(--ink);
   --foreground: var(--white);
+}
+
+@media (min-width: 640px) {
+  :root {
+    --header-h: 76px;
+    --container-pad: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --container-pad: 2rem;
+  }
 }
 
 @theme inline {
@@ -94,7 +111,7 @@ textarea {
 }
 
 .container-site {
-  width: min(100% - 2rem, var(--container));
+  width: min(100% - (var(--container-pad) * 2), var(--container));
   margin-inline: auto;
 }
 
@@ -119,12 +136,19 @@ textarea {
   border-radius: 999px;
   font-weight: 700;
   letter-spacing: 0.01em;
+  -webkit-tap-highlight-color: transparent;
   transition:
     transform 0.25s ease,
     background 0.25s ease,
     border-color 0.25s ease,
     box-shadow 0.25s ease,
     color 0.25s ease;
+}
+
+@media (max-width: 639px) {
+  .btn-stack-mobile {
+    width: 100%;
+  }
 }
 
 .btn:hover {
@@ -197,14 +221,18 @@ textarea {
 }
 
 .reveal {
-  opacity: 0;
+  opacity: 1;
+  transform: none;
+}
+
+.reveal.reveal-pending {
+  opacity: 1;
   transform: translateY(22px);
   transition:
-    opacity 0.7s ease,
     transform 0.7s ease;
 }
 
-.reveal.is-visible {
+.reveal.reveal-pending.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
@@ -220,7 +248,7 @@ textarea {
     animation: none !important;
   }
 
-  .reveal {
+  .reveal.reveal-pending {
     opacity: 1;
     transform: none;
     transition: none;

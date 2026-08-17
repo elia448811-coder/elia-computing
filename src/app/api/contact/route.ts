@@ -150,6 +150,11 @@ function isAllowedOrigin(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const contentType = request.headers.get("content-type") ?? "";
+  if (!contentType.toLowerCase().startsWith("application/json")) {
+    return NextResponse.json({ error: "סוג בקשה לא נתמך" }, { status: 415 });
+  }
+
   if (!isAllowedOrigin(request)) {
     return NextResponse.json({ error: "בקשה לא מורשית" }, { status: 403 });
   }
@@ -177,7 +182,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
   }
 
-  // Obscure honeypot — not a common autofill target
+  // Obscure honeypot: not a common autofill target
   if ((body[HONEYPOT_FIELD] ?? "").trim() !== "") {
     return NextResponse.json({ ok: true, delivered: false });
   }

@@ -17,7 +17,7 @@ export const footerQuickLinks = [
 ] as const;
 
 export const legalLinks = [
-  { href: "/privacy", label: "Privacy Policy" },
-  { href: "/accessibility", label: "Accessibility" },
-  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "מדיניות פרטיות" },
+  { href: "/accessibility", label: "הצהרת נגישות" },
+  { href: "/terms", label: "תנאי שימוש" },
 ] as const;

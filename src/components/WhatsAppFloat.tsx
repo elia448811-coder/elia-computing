@@ -16,7 +16,7 @@ export function WhatsAppFloat() {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-5 left-5 z-40 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#0b1729]/85 text-electric-bright shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition hover:border-electric/40 hover:shadow-[var(--glow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-electric"
+      className="fixed bottom-[calc(1.1rem+var(--safe-bottom))] left-[calc(1.1rem+var(--safe-left))] z-40 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-[#0b1729]/90 text-electric-bright shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition hover:border-electric/40 hover:shadow-[var(--glow)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-electric sm:bottom-5 sm:left-5"
       aria-label="יצירת קשר בוואטסאפ"
     >
       <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden="true">

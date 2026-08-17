@@ -12,7 +12,7 @@ export function Footer() {
       <h2 id="footer-heading" className="sr-only">
         תחתית האתר
       </h2>
-      <div className="container-site grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-4">
+      <div className="container-site grid gap-8 py-10 sm:gap-10 sm:py-14 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="flex items-center gap-3">
             <Logo
@@ -84,7 +84,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-white"
                 >
-                  WhatsApp
+                  וואטסאפ
                 </a>
               </li>
             ) : null}

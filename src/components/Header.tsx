@@ -28,24 +28,26 @@ export function Header() {
     <header
       className={`fixed inset-x-0 top-0 z-50 transition-[background,border-color,backdrop-filter] duration-300 ${
         scrolled || open
-          ? "border-b border-white/10 bg-[#050a14]/80 backdrop-blur-xl"
+          ? "border-b border-white/10 bg-[#050a14]/90 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
-      <div className="container-site flex h-[76px] items-center justify-between gap-4">
+      <div className="container-site flex h-[var(--header-h)] items-center justify-between gap-3">
         <Link
           href="#home"
-          className="flex items-center gap-3"
+          className="flex min-w-0 items-center gap-2.5 sm:gap-3"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
+          onClick={() => setOpen(false)}
         >
           <Logo
             variant="for-dark"
-            className="h-12 w-12 rounded-full object-cover sm:h-14 sm:w-14"
+            className="h-11 w-11 shrink-0 rounded-full object-cover sm:h-14 sm:w-14"
             priority
             sizes="56px"
           />
-          <span className="hidden text-sm font-bold leading-tight text-white sm:block sm:text-base">
-            {siteConfig.name}
+          <span className="min-w-0 truncate text-sm font-bold leading-tight text-white sm:text-base">
+            <span className="sm:hidden">אליה</span>
+            <span className="hidden sm:inline">{siteConfig.name}</span>
           </span>
         </Link>
 
@@ -61,8 +63,11 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <a href="#contact" className="btn btn-primary hidden px-5 text-sm sm:inline-flex">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <a
+            href="#contact"
+            className="btn btn-primary !hidden px-5 text-sm sm:!inline-flex"
+          >
             דברו איתי
           </a>
 
@@ -98,28 +103,37 @@ export function Header() {
 
       <div
         id="mobile-menu"
-        className={`border-t border-white/10 bg-[#050a14]/95 backdrop-blur-xl lg:hidden ${
-          open ? "block" : "hidden"
-        }`}
+        className={`lg:hidden ${open ? "block" : "hidden"}`}
       >
-        <nav className="container-site flex flex-col gap-1 py-4" aria-label="תפריט מובייל">
-          {navLinks.map((link) => (
+        <button
+          type="button"
+          className="fixed inset-0 top-[var(--header-h)] z-40 bg-black/55 backdrop-blur-[2px]"
+          aria-label="סגירת תפריט"
+          onClick={() => setOpen(false)}
+        />
+        <nav
+          className="relative z-50 border-t border-white/10 bg-[#050a14]/98 pb-[max(1rem,var(--safe-bottom))] backdrop-blur-xl"
+          aria-label="תפריט מובייל"
+        >
+          <div className="container-site flex max-h-[calc(100svh-var(--header-h))] flex-col gap-1 overflow-y-auto py-3">
+            {navLinks.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="rounded-xl px-3 py-3.5 text-base font-medium text-silver hover:bg-white/5 hover:text-white"
+                onClick={() => setOpen(false)}
+              >
+                {link.label}
+              </a>
+            ))}
             <a
-              key={link.href}
-              href={link.href}
-              className="rounded-xl px-3 py-3 text-base text-silver hover:bg-white/5 hover:text-white"
+              href="#contact"
+              className="btn btn-primary mt-2 w-full"
               onClick={() => setOpen(false)}
             >
-              {link.label}
+              דברו איתי
             </a>
-          ))}
-          <a
-            href="#contact"
-            className="btn btn-primary mt-2"
-            onClick={() => setOpen(false)}
-          >
-            דברו איתי
-          </a>
+          </div>
         </nav>
       </div>
     </header>

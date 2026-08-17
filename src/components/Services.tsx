@@ -16,11 +16,11 @@ function ServiceCard({ service }: { service: Service }) {
     : service.items.slice(0, PREVIEW_COUNT);
 
   return (
-    <article className="glass group flex h-full flex-col rounded-[var(--radius-lg)] p-6 transition duration-300 hover:-translate-y-1 hover:border-electric/35 hover:shadow-[var(--glow)]">
-      <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-electric/10 text-electric-bright transition group-hover:bg-electric/20">
+    <article className="glass group flex h-full flex-col rounded-[var(--radius-lg)] p-5 transition duration-300 hover:-translate-y-1 hover:border-electric/35 hover:shadow-[var(--glow)] sm:p-6">
+      <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-electric/10 text-electric-bright transition group-hover:bg-electric/20 sm:mb-4 sm:h-12 sm:w-12">
         <ServiceIcon name={service.icon} />
       </div>
-      <h3 className="text-xl font-bold text-white">{service.title}</h3>
+      <h3 className="text-lg font-bold text-white sm:text-xl">{service.title}</h3>
       <p className="mt-2 text-sm leading-relaxed text-silver-muted">
         {service.description}
       </p>
@@ -57,11 +57,11 @@ export function Services() {
           <SectionHeading
             eyebrow="שירותים"
             title="כל מה שהטכנולוגיה שלכם צריכה"
-            description="ממחשבים ורשתות ועד אבטחה, ענן, פיתוח ובניית אתרים — לפי הצורך שלכם."
+            description="ממחשבים ורשתות ועד אבטחה, ענן, פיתוח ובניית אתרים, לפי הצורך שלכם."
           />
         </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:mt-12 sm:gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {services.map((service, index) => (
             <Reveal key={service.id} delayMs={(index % 3) * 70}>
               <ServiceCard service={service} />
@@ -70,8 +70,8 @@ export function Services() {
         </div>
 
         <Reveal delayMs={120}>
-          <div className="mt-10 flex justify-center">
-            <a href="#contact" className="btn btn-secondary">
+          <div className="mt-8 flex justify-center sm:mt-10">
+            <a href="#contact" className="btn btn-secondary btn-stack-mobile">
               בואו נתאים לכם פתרון
             </a>
           </div>

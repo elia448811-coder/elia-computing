@@ -24,6 +24,8 @@ export function Reveal({ children, className = "", delayMs = 0 }: RevealProps) {
       return;
     }
 
+    node.classList.add("reveal-pending");
+
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
@@ -35,7 +37,10 @@ export function Reveal({ children, className = "", delayMs = 0 }: RevealProps) {
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      node.classList.remove("reveal-pending");
+    };
   }, [delayMs]);
 
   return (

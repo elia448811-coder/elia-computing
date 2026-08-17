@@ -31,8 +31,8 @@ export function About() {
         </Reveal>
 
         <Reveal delayMs={80}>
-          <div className="glass mt-10 space-y-5 rounded-[var(--radius-xl)] p-6 sm:p-8 lg:p-10">
-            <p className="text-lg font-semibold text-white sm:text-xl">
+          <div className="glass mt-8 space-y-4 rounded-[var(--radius-xl)] p-5 sm:mt-10 sm:space-y-5 sm:p-8 lg:p-10">
+            <p className="text-base font-semibold text-white sm:text-xl">
               {aboutContent.opening}
             </p>
 
@@ -41,7 +41,7 @@ export function About() {
               return (
                 <p
                   key={paragraph}
-                  className="text-base leading-relaxed text-silver sm:text-lg"
+                  className="text-[0.95rem] leading-relaxed text-silver sm:text-lg"
                 >
                   {parts.map((part, index) =>
                     typeof part === "string" ? (
@@ -59,7 +59,7 @@ export function About() {
               );
             })}
 
-            <p className="text-base leading-relaxed text-silver sm:text-lg">
+            <p className="text-[0.95rem] leading-relaxed text-silver sm:text-lg">
               {emphasize(aboutContent.highlight, aboutContent.emphasisPhrases).map(
                 (part, index) =>
                   typeof part === "string" ? (
@@ -75,21 +75,21 @@ export function About() {
               )}
             </p>
 
-            <p className="text-base leading-relaxed text-silver sm:text-lg">
+            <p className="text-[0.95rem] leading-relaxed text-silver sm:text-lg">
               {aboutContent.aftercare}
             </p>
 
-            <div className="border-t border-white/10 pt-6 text-center">
-              <p className="text-lg font-bold text-electric-bright sm:text-xl">
+            <div className="border-t border-white/10 pt-5 text-center sm:pt-6">
+              <p className="text-base font-bold text-electric-bright sm:text-xl">
                 {aboutContent.tagline}
               </p>
-              <p className="mt-4 text-base text-silver sm:text-lg">
+              <p className="mt-3 text-[0.95rem] text-silver sm:mt-4 sm:text-lg">
                 {aboutContent.closingLead}
               </p>
-              <p className="mt-2 text-base font-bold text-white sm:text-lg">
+              <p className="mt-2 text-[0.95rem] font-bold text-white sm:text-lg">
                 {aboutContent.closingStrong}
               </p>
-              <a href="#contact" className="btn btn-primary mt-8">
+              <a href="#contact" className="btn btn-primary btn-stack-mobile mt-6 sm:mt-8">
                 בואו נדבר על הרעיון שלכם
               </a>
             </div>
