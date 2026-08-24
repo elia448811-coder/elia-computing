@@ -181,6 +181,9 @@ export const faqItems = [
 ] as const;
 
 export const serviceTypeOptions = [
+  "חבילת Basic",
+  "חבילת Medium",
+  "חבילת Pro+",
   "תמיכה טכנית",
   "מחשבים",
   "רשתות",
