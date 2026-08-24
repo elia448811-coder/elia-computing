@@ -50,8 +50,8 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: "/logos/logo-for-dark.jpg",
-    apple: "/logos/logo-for-dark.jpg",
+    icon: "/logos/logo-mark-v2.png",
+    apple: "/logos/logo-mark-v2.png",
   },
 };
 
@@ -62,7 +62,7 @@ function JsonLd() {
     name: siteConfig.name,
     description: siteConfig.description,
     url: siteConfig.url,
-    image: `${siteConfig.url}/logos/logo-for-dark.jpg`,
+    image: `${siteConfig.url}/logos/logo-mark-v2.png`,
     slogan: siteConfig.slogan,
     areaServed: "IL",
     availableLanguage: ["he"],

@@ -10,21 +10,21 @@ type LogoProps = {
 
 const sources = {
   "for-dark": {
-    src: "/logos/logo-for-dark.jpg",
-    width: 640,
-    height: 640,
+    src: "/logos/logo-mark-v2.png",
+    width: 1254,
+    height: 1254,
     alt: "אליה שירותי מחשוב",
   },
   "for-light": {
-    src: "/logos/logo-for-light.jpg",
-    width: 640,
-    height: 640,
+    src: "/logos/logo-mark-v2.png",
+    width: 1254,
+    height: 1254,
     alt: "אליה שירותי מחשוב",
   },
   compact: {
-    src: "/logos/logo-for-dark.jpg",
-    width: 96,
-    height: 96,
+    src: "/logos/logo-mark-v2.png",
+    width: 1254,
+    height: 1254,
     alt: "אליה שירותי מחשוב",
   },
 } as const;
