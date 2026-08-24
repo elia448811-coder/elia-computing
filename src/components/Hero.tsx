@@ -1,3 +1,5 @@
+import { Logo } from "@/components/Logo";
+
 const capabilities = [
   { label: "מחשוב ורשתות", detail: "תשתית יציבה" },
   { label: "ענן ואבטחה", detail: "עבודה בטוחה" },
@@ -62,7 +64,12 @@ export function Hero() {
           <div className="hero-dashboard relative overflow-hidden rounded-[2rem] border border-white/12 p-5 shadow-2xl sm:p-7">
             <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
               <div className="flex items-center gap-3">
-                <span className="brand-monogram" aria-hidden="true">E</span>
+                <Logo
+                  variant="for-dark"
+                  className="h-12 w-12 rounded-2xl border border-electric/20 object-cover"
+                  priority
+                  sizes="48px"
+                />
                 <div>
                   <p className="font-bold text-white">מרכז הבקרה של העסק</p>
                   <p className="text-xs text-silver-muted">אליה שירותי מחשוב</p>

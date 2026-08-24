@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Logo } from "@/components/Logo";
 import { navLinks } from "@/data/navigation";
 import { siteConfig } from "@/data/site";
 
@@ -37,7 +38,12 @@ export function Header() {
           className="flex items-center gap-3 rounded-2xl"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
         >
-          <span className="brand-monogram" aria-hidden="true">E</span>
+          <Logo
+            variant="for-dark"
+            className="h-12 w-12 rounded-2xl border border-electric/20 object-cover shadow-[0_10px_30px_rgba(69,200,255,.18)]"
+            priority
+            sizes="48px"
+          />
           <span className="hidden leading-tight sm:block">
             <span className="block text-sm font-extrabold text-white sm:text-base">{siteConfig.name}</span>
             <span className="mt-0.5 block text-[11px] font-medium text-silver-muted">הטכנולוגיה של העסק, מסודרת.</span>
