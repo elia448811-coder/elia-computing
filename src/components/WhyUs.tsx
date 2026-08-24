@@ -17,13 +17,14 @@ export function WhyUs() {
           {whyUsContent.points.map((point, index) => (
             <Reveal key={point.title} delayMs={(index % 3) * 60}>
               <div
-                className={`glass h-full rounded-[var(--radius-md)] border-r-2 border-r-electric/50 p-5 ${
+                className={`glass h-full rounded-[var(--radius-lg)] p-6 transition hover:border-electric/30 hover:bg-electric/[0.035] ${
                   index === whyUsContent.points.length - 1
                     ? "sm:col-span-2 lg:col-span-1"
                     : ""
                 }`}
               >
-                <h3 className="text-base font-bold text-white sm:text-lg">
+                <span className="mb-5 flex h-8 w-8 items-center justify-center rounded-xl bg-electric/10 text-sm font-black text-electric-bright" aria-hidden="true">✓</span>
+                <h3 className="text-base font-extrabold text-white sm:text-lg">
                   {point.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-silver-muted">

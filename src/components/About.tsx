@@ -18,9 +18,10 @@ export function About() {
         <div className="mt-12 grid gap-5 lg:grid-cols-3">
           {pillars.map((pillar, index) => (
             <Reveal key={pillar.number} delayMs={index * 70}>
-              <article className="glass group h-full rounded-[var(--radius-lg)] p-7 transition duration-300 hover:-translate-y-1 hover:border-electric/30">
-                <span className="text-sm font-bold tracking-[0.18em] text-electric">{pillar.number}</span>
-                <h3 className="mt-8 text-2xl font-bold text-white">{pillar.title}</h3>
+              <article className="glass group relative h-full overflow-hidden rounded-[var(--radius-lg)] p-7 transition duration-300 hover:-translate-y-1 hover:border-electric/30">
+                <span className="absolute -left-2 -top-5 text-8xl font-black text-white/[0.035]">{pillar.number}</span>
+                <span className="relative text-sm font-bold tracking-[0.18em] text-electric">{pillar.number}</span>
+                <h3 className="relative mt-12 text-2xl font-extrabold text-white">{pillar.title}</h3>
                 <p className="mt-3 leading-7 text-silver-muted">{pillar.text}</p>
               </article>
             </Reveal>
@@ -28,7 +29,7 @@ export function About() {
         </div>
 
         <Reveal delayMs={100}>
-          <div className="mt-6 overflow-hidden rounded-[var(--radius-xl)] border border-electric/15 bg-[linear-gradient(110deg,rgba(56,189,248,.12),rgba(255,255,255,.025))] p-7 sm:p-10">
+          <div className="mt-6 overflow-hidden rounded-[var(--radius-xl)] border border-electric/20 bg-[linear-gradient(110deg,rgba(69,200,255,.14),rgba(255,255,255,.025))] p-7 shadow-[var(--glow)] sm:p-10">
             <div className="flex flex-col items-start justify-between gap-7 md:flex-row md:items-center">
               <div className="max-w-2xl">
                 <p className="text-sm font-bold text-electric-bright">רעיון אחד. כתובת אחת. מעטפת מלאה.</p>

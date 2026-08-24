@@ -6,7 +6,7 @@ export function Websites() {
   return (
     <section id="websites" className="section-y relative" aria-labelledby="websites-title">
       <div className="container-site">
-        <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-6 py-12 sm:px-10 lg:px-14 lg:py-16">
+        <div className="glass relative overflow-hidden rounded-[2.25rem] px-6 py-12 shadow-[var(--glow)] sm:px-10 lg:px-14 lg:py-16">
           <div
             className="pointer-events-none absolute inset-0"
             aria-hidden="true"
@@ -35,8 +35,9 @@ export function Websites() {
                 {websitesContent.features.map((feature) => (
                   <div
                     key={feature}
-                    className="rounded-2xl border border-white/10 bg-[#050a14]/45 px-4 py-4 text-sm font-semibold text-silver backdrop-blur-sm transition hover:border-electric/40 hover:text-white hover:shadow-[var(--glow)]"
+                    className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#050a14]/55 px-4 py-4 text-sm font-semibold text-silver backdrop-blur-sm transition hover:border-electric/40 hover:text-white hover:shadow-[var(--glow)]"
                   >
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-electric/10 text-xs text-electric-bright" aria-hidden="true">✓</span>
                     {feature}
                   </div>
                 ))}

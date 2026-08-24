@@ -28,13 +28,15 @@ export function BusinessSolutions() {
           </Reveal>
 
           <Reveal delayMs={100}>
-            <div className="glass rounded-[var(--radius-xl)] p-6 sm:p-8">
+            <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] p-6 sm:p-8">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-l from-electric-deep via-electric-bright to-violet-400" aria-hidden="true" />
               <ul className="grid gap-3 sm:grid-cols-2">
                 {businessContent.benefits.map((benefit) => (
                   <li
                     key={benefit}
-                    className="rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-sm font-medium text-silver transition hover:border-electric/30 hover:text-white"
+                    className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3.5 text-sm font-semibold text-silver transition hover:border-electric/30 hover:bg-electric/[0.06] hover:text-white"
                   >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-electric" aria-hidden="true" />
                     {benefit}
                   </li>
                 ))}

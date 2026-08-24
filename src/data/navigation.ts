@@ -4,6 +4,7 @@ export const navLinks = [
   { href: "#services", label: "שירותים" },
   { href: "#business", label: "פתרונות לעסקים" },
   { href: "#websites", label: "בניית אתרים" },
+  { href: "#packages", label: "חבילות" },
   { href: "#faq", label: "שאלות נפוצות" },
   { href: "#contact", label: "צור קשר" },
 ] as const;

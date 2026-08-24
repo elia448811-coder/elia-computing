@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/Logo";
 import { navLinks } from "@/data/navigation";
 import { siteConfig } from "@/data/site";
 
@@ -35,17 +34,13 @@ export function Header() {
       <div className="container-site flex h-[76px] items-center justify-between gap-4">
         <Link
           href="#home"
-          className="flex items-center gap-3"
+          className="flex items-center gap-3 rounded-2xl"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
         >
-          <Logo
-            variant="for-dark"
-            className="h-12 w-12 rounded-full object-cover sm:h-14 sm:w-14"
-            priority
-            sizes="56px"
-          />
-          <span className="hidden text-sm font-bold leading-tight text-white sm:block sm:text-base">
-            {siteConfig.name}
+          <span className="brand-monogram" aria-hidden="true">E</span>
+          <span className="hidden leading-tight sm:block">
+            <span className="block text-sm font-extrabold text-white sm:text-base">{siteConfig.name}</span>
+            <span className="mt-0.5 block text-[11px] font-medium text-silver-muted">הטכנולוגיה של העסק, מסודרת.</span>
           </span>
         </Link>
 
@@ -54,7 +49,7 @@ export function Header() {
             <a
               key={link.href}
               href={link.href}
-              className="rounded-full px-3 py-2 text-sm text-silver transition-colors hover:bg-white/5 hover:text-white"
+              className="rounded-xl px-3 py-2 text-sm font-medium text-silver transition-colors hover:bg-white/6 hover:text-white"
             >
               {link.label}
             </a>

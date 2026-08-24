@@ -26,19 +26,19 @@ export function FAQ() {
 
             return (
               <Reveal key={item.question} delayMs={index * 50}>
-                <div className="glass overflow-hidden rounded-[var(--radius-md)]">
+                <div className={`glass overflow-hidden rounded-[var(--radius-md)] transition ${isOpen ? "border-electric/30 bg-electric/[0.035]" : ""}`}>
                   <h3>
                     <button
                       id={buttonId}
                       type="button"
-                      className="flex w-full items-center justify-between gap-4 px-5 py-4 text-start text-base font-semibold text-white"
+                      className="flex w-full items-center justify-between gap-4 px-6 py-5 text-start text-base font-bold text-white"
                       aria-expanded={isOpen}
                       aria-controls={panelId}
                       onClick={() => setOpenIndex(isOpen ? null : index)}
                     >
                       <span>{item.question}</span>
                       <span
-                        className={`text-electric-bright transition ${isOpen ? "rotate-45" : ""}`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-electric/10 text-xl text-electric-bright transition ${isOpen ? "rotate-45" : ""}`}
                         aria-hidden="true"
                       >
                         +
@@ -50,7 +50,7 @@ export function FAQ() {
                     role="region"
                     aria-labelledby={buttonId}
                     hidden={!isOpen}
-                    className="px-5 pb-5 text-sm leading-relaxed text-silver-muted"
+                    className="px-6 pb-6 text-sm leading-7 text-silver-muted"
                   >
                     {item.answer}
                   </div>

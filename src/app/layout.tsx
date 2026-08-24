@@ -32,9 +32,9 @@ export const metadata: Metadata = {
     description: siteConfig.description,
     images: [
       {
-        url: "/logos/logo-for-dark.jpg",
+        url: "/og.png",
         width: 1200,
-        height: 1200,
+        height: 630,
         alt: siteConfig.name,
       },
     ],
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: siteConfig.title,
     description: siteConfig.description,
-    images: ["/logos/logo-for-dark.jpg"],
+    images: ["/og.png"],
   },
   robots: {
     index: true,

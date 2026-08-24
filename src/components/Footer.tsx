@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Logo } from "@/components/Logo";
 import { footerQuickLinks, legalLinks } from "@/data/navigation";
 import { services } from "@/data/services";
 import { siteConfig } from "@/data/site";
@@ -15,13 +14,9 @@ export function Footer() {
       <div className="container-site grid gap-10 py-14 md:grid-cols-2 lg:grid-cols-4">
         <div>
           <div className="flex items-center gap-3">
-            <Logo
-              variant="for-dark"
-              className="h-16 w-16 rounded-full object-cover"
-              sizes="64px"
-            />
+            <span className="brand-monogram" aria-hidden="true">E</span>
             <div>
-              <p className="font-bold text-white">{siteConfig.name}</p>
+              <p className="font-extrabold text-white">{siteConfig.name}</p>
               <p className="text-sm text-silver-muted">{siteConfig.slogan}</p>
             </div>
           </div>

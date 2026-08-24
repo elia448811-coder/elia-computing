@@ -5,7 +5,7 @@ export function CTABanner() {
     <section className="section-y relative pt-0" aria-labelledby="cta-title">
       <div className="container-site">
         <Reveal>
-          <div className="glass relative overflow-hidden rounded-[var(--radius-xl)] px-6 py-14 text-center sm:px-10">
+          <div className="relative overflow-hidden rounded-[2.25rem] border border-electric/30 bg-[linear-gradient(135deg,#0d2844,#071421_55%,#0b1c2f)] px-6 py-16 text-center shadow-[var(--glow-strong)] sm:px-10">
             <div
               className="pointer-events-none absolute inset-0"
               aria-hidden="true"
@@ -17,7 +17,7 @@ export function CTABanner() {
             <div className="relative">
               <h2
                 id="cta-title"
-                className="text-balance text-3xl font-bold text-white sm:text-4xl"
+                className="text-balance text-3xl font-extrabold tracking-[-0.02em] text-white sm:text-5xl"
               >
                 יש לכם רעיון? תקלה? פרויקט?
               </h2>

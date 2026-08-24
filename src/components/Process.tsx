@@ -21,11 +21,11 @@ export function Process() {
           />
           {processSteps.map((step, index) => (
             <Reveal key={step.step} delayMs={index * 80}>
-              <li className="relative glass h-full rounded-[var(--radius-lg)] p-5 text-center lg:text-start">
-                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-electric/35 bg-electric/10 text-sm font-bold text-electric-bright lg:mx-0">
+              <li className="relative glass h-full rounded-[var(--radius-lg)] p-6 text-center transition hover:-translate-y-1 hover:border-electric/30 lg:text-start">
+                <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-electric/35 bg-electric/10 text-sm font-black text-electric-bright shadow-[0_12px_30px_rgba(69,200,255,.1)] lg:mx-0">
                   {step.step}
                 </div>
-                <h3 className="text-lg font-bold text-white">{step.title}</h3>
+                <h3 className="text-lg font-extrabold text-white">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-silver-muted">
                   {step.text}
                 </p>
