@@ -100,10 +100,17 @@ export function Hero() {
                 <span className="text-sm text-silver-muted">מעטפת טכנולוגית</span>
               </div>
             </div>
-          </div>
-          <div className="mt-4 ml-auto w-fit max-w-full rounded-2xl border border-white/10 bg-[#0b1626]/95 px-5 py-4 shadow-2xl backdrop-blur-xl">
-            <span className="block text-sm font-bold text-white">מענה אישי וישיר</span>
-            <span className="text-xs text-silver-muted">בלי להעביר אתכם בין ספקים</span>
+
+            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-electric/15 bg-electric/[0.06] px-4 py-4">
+              <div>
+                <span className="block text-sm font-bold text-white">מענה אישי וישיר</span>
+                <span className="text-xs text-silver-muted">בלי להעביר אתכם בין ספקים</span>
+              </div>
+              <span className="inline-flex shrink-0 items-center gap-2 text-xs font-bold text-emerald-300">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.8)]" />
+                זמין עבורכם
+              </span>
+            </div>
           </div>
         </div>
       </div>
