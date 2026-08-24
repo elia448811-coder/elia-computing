@@ -101,7 +101,7 @@ export function Hero() {
               </div>
             </div>
           </div>
-          <div className="absolute -bottom-5 -right-4 rounded-2xl border border-white/10 bg-[#0b1626]/95 px-5 py-4 shadow-2xl backdrop-blur-xl sm:-right-8">
+          <div className="mt-4 ml-auto w-fit max-w-full rounded-2xl border border-white/10 bg-[#0b1626]/95 px-5 py-4 shadow-2xl backdrop-blur-xl">
             <span className="block text-sm font-bold text-white">מענה אישי וישיר</span>
             <span className="text-xs text-silver-muted">בלי להעביר אתכם בין ספקים</span>
           </div>

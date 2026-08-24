@@ -50,7 +50,7 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="ניווט ראשי">
+        <nav className="hidden items-center gap-1 xl:flex" aria-label="ניווט ראשי">
           {navLinks.map((link) => (
             <a
               key={link.href}
@@ -69,7 +69,7 @@ export function Header() {
 
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white xl:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? "סגירת תפריט" : "פתיחת תפריט"}
@@ -99,7 +99,7 @@ export function Header() {
 
       <div
         id="mobile-menu"
-        className={`border-t border-white/10 bg-[#050a14]/95 backdrop-blur-xl lg:hidden ${
+        className={`border-t border-white/10 bg-[#050a14]/95 backdrop-blur-xl xl:hidden ${
           open ? "block" : "hidden"
         }`}
       >
