@@ -60,8 +60,8 @@ export function Hero() {
           </ul>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[520px]">
-          <div className="hero-dashboard relative overflow-hidden rounded-[2rem] border border-white/12 p-5 shadow-2xl sm:p-7">
+        <div className="relative mx-auto w-full max-w-[500px]">
+          <div className="hero-dashboard relative overflow-hidden rounded-[1.75rem] border border-white/12 p-5 shadow-2xl sm:p-6">
             <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
               <div className="flex items-center gap-3">
                 <Logo
@@ -80,7 +80,7 @@ export function Hero() {
 
             <div className="mt-6 grid gap-3">
               {serviceStatus.map((item) => (
-                <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-4">
+                <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-3.5">
                   <div className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${item.tone} shadow-[0_0_16px_currentColor]`} />
                     <span className="text-sm font-medium text-silver">{item.label}</span>
@@ -91,25 +91,22 @@ export function Hero() {
             </div>
 
             <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-electric px-5 py-5 text-ink">
+              <div className="rounded-2xl bg-electric px-5 py-4 text-ink">
                 <span className="block text-3xl font-black">6</span>
                 <span className="text-sm font-bold">חודשי ליווי</span>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-[#0c1829] px-5 py-5">
+              <div className="rounded-2xl border border-white/10 bg-[#0c1829] px-5 py-4">
                 <span className="block text-3xl font-black text-white">360°</span>
                 <span className="text-sm text-silver-muted">מעטפת טכנולוגית</span>
               </div>
             </div>
 
-            <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-electric/15 bg-electric/[0.06] px-4 py-4">
-              <div>
-                <span className="block text-sm font-bold text-white">מענה אישי וישיר</span>
-                <span className="text-xs text-silver-muted">בלי להעביר אתכם בין ספקים</span>
-              </div>
-              <span className="inline-flex shrink-0 items-center gap-2 text-xs font-bold text-emerald-300">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,.8)]" />
-                זמין עבורכם
-              </span>
+            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-5">
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,.75)]" />
+              <p className="text-sm text-silver">
+                <strong className="font-bold text-white">מענה אישי וישיר</strong>
+                <span className="text-silver-muted"> · בלי להעביר אתכם בין ספקים</span>
+              </p>
             </div>
           </div>
         </div>
