@@ -10,7 +10,7 @@ export function Process() {
           <SectionHeading
             eyebrow="תהליך עבודה"
             title="מאיפה מתחילים ועד ליווי שוטף"
-            description="תהליך ברור, שקוף ומקצועי — בלי הפתעות."
+            description="תהליך ברור, שקוף ומקצועי, בלי הפתעות."
           />
         </Reveal>
 

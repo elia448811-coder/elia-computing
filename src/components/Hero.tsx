@@ -37,7 +37,7 @@ export function Hero() {
             <span className="hero-gradient block">יותר שקט לעבוד.</span>
           </h1>
           <p className="mt-7 max-w-2xl text-pretty text-lg leading-8 text-silver sm:text-xl">
-            מחשוב, רשתות, אבטחה, ענן ואתרים לעסקים שרוצים להתקדם — עם
+            מחשוב, רשתות, אבטחה, ענן ואתרים לעסקים שרוצים להתקדם, עם
             תכנון נכון, ביצוע מדויק וכתובת אחת שמכירה את כל התמונה.
           </p>
 

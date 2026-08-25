@@ -2,7 +2,7 @@ import { Reveal } from "@/components/Reveal";
 import { SectionHeading } from "@/components/SectionHeading";
 
 const pillars = [
-  { number: "01", title: "מבינים לפני שמבצעים", text: "מתחילים מהצורך העסקי ומהמטרה — ורק אז בוחרים את הטכנולוגיה הנכונה." },
+  { number: "01", title: "מבינים לפני שמבצעים", text: "מתחילים מהצורך העסקי ומהמטרה, ורק אז בוחרים את הטכנולוגיה הנכונה." },
   { number: "02", title: "כתובת אחת לכל הדרך", text: "תכנון, עיצוב, פיתוח, תשתיות, אבטחה והעלאה לאוויר תחת אחריות אחת." },
   { number: "03", title: "נשארים גם אחרי ההשקה", text: "כל פרויקט כולל שישה חודשי ליווי, התאמות ושיפור לפי השימוש האמיתי." },
 ];
@@ -12,7 +12,7 @@ export function About() {
     <section id="about" className="section-y relative" aria-labelledby="about-title">
       <div className="container-site">
         <Reveal>
-          <SectionHeading eyebrow="הגישה שלנו" title="רעיון טוב צריך שותף טכנולוגי שיודע להפוך אותו למציאות" description="במקום לנהל כמה ספקים ולחבר לבד את כל החלקים, מקבלים מעטפת אחת ברורה — מהשיחה הראשונה ועד מערכת יציבה שעובדת בעולם האמיתי." />
+          <SectionHeading eyebrow="הגישה שלנו" title="רעיון טוב צריך שותף טכנולוגי שיודע להפוך אותו למציאות" description="במקום לנהל כמה ספקים ולחבר לבד את כל החלקים, מקבלים מעטפת אחת ברורה, מהשיחה הראשונה ועד מערכת יציבה שעובדת בעולם האמיתי." />
         </Reveal>
 
         <div className="mt-12 grid gap-5 lg:grid-cols-3">

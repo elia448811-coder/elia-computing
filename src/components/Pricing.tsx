@@ -146,7 +146,7 @@ export function Pricing() {
         <Reveal delayMs={160}>
           <div className="mx-auto mt-8 max-w-3xl rounded-2xl border border-white/10 bg-white/[0.035] px-5 py-4 text-center text-sm leading-relaxed text-silver-muted">
             כל פרויקט מתחיל בשיחת היכרות ואפיון קצרה. לאחר שנבין את הצורך,
-            תקבלו הצעת מחיר מסודרת ושקופה — בלי הפתעות ובלי סעיפים נסתרים.
+            תקבלו הצעת מחיר מסודרת ושקופה, בלי הפתעות ובלי סעיפים נסתרים.
           </div>
         </Reveal>
       </div>

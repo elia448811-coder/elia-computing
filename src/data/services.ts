@@ -10,7 +10,7 @@ export const services: Service[] = [
   {
     id: "support",
     title: "תמיכה ושירותי מחשוב",
-    description: "טיפול מקצועי במחשבים ובמערכות — מהתקנה ועד אופטימיזציה.",
+    description: "טיפול מקצועי במחשבים ובמערכות, מהתקנה ועד אופטימיזציה.",
     icon: "support",
     items: [
       "פתרון תקלות מחשב",
@@ -72,7 +72,7 @@ export const services: Service[] = [
   {
     id: "websites",
     title: "בניית אתרים",
-    description: "אתרים מהירים, מאובטחים וממירים — מותאמים לעסק שלכם.",
+    description: "אתרים מהירים, מאובטחים וממירים, מותאמים לעסק שלכם.",
     icon: "web",
     items: [
       "אתרי תדמית",
@@ -107,7 +107,7 @@ export const services: Service[] = [
   {
     id: "consulting",
     title: "ייעוץ טכנולוגי",
-    description: "תכנון נכון מראש — ציוד, ארכיטקטורה ופתרונות תוכנה.",
+    description: "תכנון נכון מראש: ציוד, ארכיטקטורה ופתרונות תוכנה.",
     icon: "consult",
     items: [
       "בחירת ציוד",

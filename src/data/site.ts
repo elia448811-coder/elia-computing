@@ -16,7 +16,7 @@ export const siteConfig = {
     address: process.env.NEXT_PUBLIC_ADDRESS ?? "",
   },
   social: {
-    // אופציונלי — השאירו ריק אם אין
+    // אופציונלי, השאירו ריק אם אין
     facebook: "",
     instagram: "",
     linkedin: "",

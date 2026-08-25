@@ -177,7 +177,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
   }
 
-  // Obscure honeypot — not a common autofill target
+  // Obscure honeypot, not a common autofill target
   if ((body[HONEYPOT_FIELD] ?? "").trim() !== "") {
     return NextResponse.json({ ok: true, delivered: false });
   }
