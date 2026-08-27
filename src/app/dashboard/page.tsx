@@ -58,7 +58,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
         <section id="create" className="mt-7">
           <div className="mb-5"><p className="text-sm font-bold text-electric-bright">מתחילים כאן</p><h2 className="mt-1 text-2xl font-bold text-white sm:text-3xl">איך תרצו ליצור את המסמך?</h2></div>
-          <div className="grid gap-5 xl:grid-cols-2">
+          <div className="grid items-start gap-5">
             <details open className="group glass rounded-[var(--radius-xl)] p-5 sm:p-7">
               <summary className="cursor-pointer list-none"><div className="flex items-start gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-400/15 text-xl font-black text-sky-200">Aa</span><div><p className="font-bold text-white">מסמך חדש בעורך החכם</p><p className="mt-1 text-sm leading-relaxed text-silver-muted">תבניות חוזה, אחריות, הצעת מחיר ותנאי שימוש עם עריכה מלאה ותצוגה מקדימה.</p></div><span className="mr-auto text-silver-muted group-open:rotate-180">⌄</span></div></summary>
               <form action={createDocumentAction} className="mt-7 space-y-5 border-t border-white/10 pt-6">

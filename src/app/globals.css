@@ -205,6 +205,12 @@ textarea {
 .rich-editor a,
 .document-preview a { color: #0369a1; text-decoration: underline; }
 
+.document-paper {
+  color-scheme: only light;
+  forced-color-adjust: none;
+  caret-color: #0f172a;
+}
+
 :focus-visible {
   outline: 2px solid var(--electric);
   outline-offset: 3px;
