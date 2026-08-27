@@ -17,7 +17,7 @@ export default async function LoginPage() {
           <span className="font-bold text-white">אליה שירותי מחשוב</span>
         </Link>
         <h1 className="text-center text-3xl font-bold text-white">חתימות מרובות</h1>
-        <p className="mt-2 text-center text-silver-muted">ניהול מסמכים, שני קישורים וחתימות ידניות</p>
+        <p className="mt-2 text-center text-silver-muted">ניהול מסמכים ועד ארבעה חותמים עם קישורים אישיים</p>
         <div className="mt-7"><GoogleLoginButton /></div>
       </div>
     </main>

@@ -7,6 +7,7 @@ import { CopyLinkButton } from "@/components/CopyLinkButton";
 import type { SignatureDocument } from "@/lib/documents";
 
 type Filter = "active" | "waiting" | "completed" | "archived" | "all";
+type Sort = "newest" | "oldest" | "title" | "status";
 
 function documentState(document: SignatureDocument) {
   if (document.archivedAt) return "archived";
@@ -16,17 +17,23 @@ function documentState(document: SignatureDocument) {
   return complete ? "completed" : "waiting";
 }
 
-export function DocumentLibrary({ documents, siteUrl }: { documents: SignatureDocument[]; siteUrl: string }) {
+export function DocumentLibrary({ documents, siteUrl, requestedFilter = "active" }: { documents: SignatureDocument[]; siteUrl: string; requestedFilter?: Filter }) {
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("active");
+  const [filter, setFilter] = useState<Filter>(requestedFilter);
   const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [sort, setSort] = useState<Sort>("newest");
 
   const filtered = useMemo(() => documents.filter((document) => {
     const state = documentState(document);
     const matchesFilter = filter === "all" || (filter === "active" ? state !== "archived" : state === filter);
     const text = `${document.title} ${document.recipientName ?? ""} ${document.recipientEmail ?? ""}`.toLocaleLowerCase("he");
     return matchesFilter && text.includes(query.trim().toLocaleLowerCase("he"));
-  }), [documents, filter, query]);
+  }).sort((left, right) => {
+    if (sort === "oldest") return left.createdAt.localeCompare(right.createdAt);
+    if (sort === "title") return left.title.localeCompare(right.title, "he");
+    if (sort === "status") return documentState(left).localeCompare(documentState(right));
+    return right.createdAt.localeCompare(left.createdAt);
+  }), [documents, filter, query, sort]);
 
   const filters: Array<[Filter, string]> = [["active", "פעילים"], ["waiting", "ממתינים"], ["completed", "הושלמו"], ["archived", "ארכיון"], ["all", "הכול"]];
 
@@ -37,7 +44,7 @@ export function DocumentLibrary({ documents, siteUrl }: { documents: SignatureDo
         <span className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-bold text-silver">{documents.length} מסמכים</span>
       </div>
 
-      <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto_auto]">
+      <div className="mt-6 grid gap-3 lg:grid-cols-[1fr_auto_auto_auto]">
         <label className="relative block"><span className="sr-only">חיפוש מסמכים</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="חיפוש לפי שם מסמך, לקוח או אימייל..." className="w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white placeholder:text-silver-muted" /></label>
         <div className="flex flex-wrap rounded-xl border border-white/10 bg-black/10 p-1">
           {filters.map(([value, label]) => <button key={value} type="button" onClick={() => setFilter(value)} className={`rounded-lg px-3 py-2 text-xs font-bold ${filter === value ? "bg-electric text-slate-950" : "text-silver hover:text-white"}`}>{label}</button>)}
@@ -46,6 +53,7 @@ export function DocumentLibrary({ documents, siteUrl }: { documents: SignatureDo
           <button type="button" onClick={() => setLayout("grid")} className={`rounded-lg px-3 py-2 text-xs font-bold ${layout === "grid" ? "bg-white/10 text-white" : "text-silver"}`}>כרטיסים</button>
           <button type="button" onClick={() => setLayout("list")} className={`rounded-lg px-3 py-2 text-xs font-bold ${layout === "list" ? "bg-white/10 text-white" : "text-silver"}`}>רשימה</button>
         </div>
+        <label className="sr-only">מיון מסמכים<select value={sort} onChange={(event) => setSort(event.target.value as Sort)} className="not-sr-only h-full min-h-11 rounded-xl border border-white/10 bg-[#0b192b] px-3 text-sm font-bold text-white"><option value="newest">החדשים קודם</option><option value="oldest">הישנים קודם</option><option value="title">לפי שם</option><option value="status">לפי סטטוס</option></select></label>
       </div>
 
       <div className={`mt-6 grid gap-4 ${layout === "grid" ? "xl:grid-cols-2" : "grid-cols-1"}`}>
@@ -64,6 +72,8 @@ export function DocumentLibrary({ documents, siteUrl }: { documents: SignatureDo
 
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 border-y border-white/8 py-3 text-xs text-silver-muted"><span>נוצר: {new Intl.DateTimeFormat("he-IL").format(new Date(document.createdAt))}</span>{document.updatedAt ? <span>עודכן: {new Intl.DateTimeFormat("he-IL").format(new Date(document.updatedAt))}</span> : null}{isPdf ? <span>{document.pdfPageCount ?? 0} עמודים</span> : null}</div>
 
+              <p className={`mt-3 rounded-xl px-3 py-2 text-xs font-bold ${complete ? "bg-green-400/[0.07] text-green-100" : "bg-amber-400/[0.07] text-amber-100"}`}>{complete ? `הפעולה הבאה: הורדה או שמירת עותק${document.signedAt ? ` · נחתם ${new Intl.DateTimeFormat("he-IL").format(new Date(document.signedAt))}` : ""}` : "הפעולה הבאה: שליחת הקישור או תזכורת לחותם"}</p>
+
               {isPdf ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{document.signers!.map((signer) => { const url = `${siteUrl}/sign/${signer.token}`; return <div key={signer.id} className="rounded-xl border border-white/8 bg-black/10 p-3"><div className="mb-2 flex items-center justify-between gap-2"><p className="truncate text-sm font-bold text-white">{signer.label}: {signer.name}</p><span className={`text-xs ${signer.signedAt ? "text-green-200" : "text-amber-200"}`}>{signer.signedAt ? "נחתם" : "ממתין"}</span></div><div className="flex flex-wrap gap-2"><CopyLinkButton url={url} /><Link href={`/sign/${signer.token}`} className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-silver">פתיחה</Link>{signer.email && !signer.signedAt ? <form action={sendDocumentEmailAction.bind(null, document.id, signer.id)}><button type="submit" className="rounded-full border border-violet-300/25 px-3 py-1.5 text-xs font-bold text-violet-100">שליחה במייל</button></form> : null}</div></div>; })}</div> : null}
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -71,7 +81,7 @@ export function DocumentLibrary({ documents, siteUrl }: { documents: SignatureDo
                 {canEdit ? <Link href={`/dashboard/documents/${document.id}/edit`} className="rounded-full border border-sky-300/25 bg-sky-300/10 px-3 py-1.5 text-xs font-bold text-sky-100">עריכה</Link> : null}
                 {!isPdf ? <form action={duplicateDocumentAction.bind(null, document.id)}><button className="rounded-full border border-white/15 px-3 py-1.5 text-xs font-bold text-silver" type="submit">שכפול</button></form> : null}
                 {isPdf && complete ? <a href={`/api/sign/${document.signers![0].token}/pdf?download=1`} className="rounded-full border border-green-300/25 bg-green-300/10 px-3 py-1.5 text-xs font-bold text-green-100">הורדת PDF חתום</a> : null}
-                <form action={archiveDocumentAction.bind(null, document.id)} className="mr-auto"><input type="hidden" name="archived" value={state === "archived" ? "false" : "true"} /><button className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-silver-muted hover:text-white" type="submit">{state === "archived" ? "החזרה לפעילים" : "העברה לארכיון"}</button></form>
+                <form action={archiveDocumentAction.bind(null, document.id)} className="mr-auto" onSubmit={(event) => { if (state !== "archived" && !window.confirm(`להעביר את \"${document.title}\" לארכיון?`)) event.preventDefault(); }}><input type="hidden" name="archived" value={state === "archived" ? "false" : "true"} /><button className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-silver-muted hover:text-white" type="submit">{state === "archived" ? "החזרה לפעילים" : "העברה לארכיון"}</button></form>
               </div>
             </article>
           );

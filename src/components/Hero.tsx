@@ -23,7 +23,7 @@ export function Hero() {
       <div className="hero-orb hero-orb-one" aria-hidden="true" />
       <div className="hero-orb hero-orb-two" aria-hidden="true" />
 
-      <div className="container-site relative grid min-h-[calc(100svh-76px)] items-center gap-14 py-16 lg:grid-cols-[1.08fr_.92fr] lg:py-24">
+      <div className="container-site relative grid min-h-[680px] items-center gap-10 py-12 lg:grid-cols-[1.08fr_.92fr] lg:py-16">
         <div className="max-w-3xl">
           <div className="hero-kicker">
             <span className="hero-kicker-dot" />
@@ -31,7 +31,7 @@ export function Hero() {
           </div>
           <h1
             id="hero-title"
-            className="mt-7 text-balance text-[clamp(3rem,7vw,6rem)] font-extrabold leading-[.93] tracking-[-0.055em] text-white"
+            className="mt-6 text-balance text-[clamp(2.75rem,6vw,5.4rem)] font-extrabold leading-[.93] tracking-[-0.055em] text-white"
           >
             פחות תקלות.
             <span className="hero-gradient block">יותר שקט לעבוד.</span>

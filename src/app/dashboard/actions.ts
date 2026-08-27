@@ -23,24 +23,31 @@ export async function createDocumentAction(formData: FormData) {
   const requestedTemplate = String(formData.get("template") ?? "blank");
   const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
   const pageOrientation = String(formData.get("pageOrientation")) === "landscape" ? "landscape" as const : "portrait" as const;
+  const pageHeader = String(formData.get("pageHeader") ?? "").slice(0, 160);
+  const pageFooter = String(formData.get("pageFooter") ?? "").slice(0, 160);
+  const showPageNumbers = String(formData.get("showPageNumbers")) !== "false";
+  const fontFamily = String(formData.get("fontFamily") ?? "Heebo").slice(0, 80);
+  const lineHeight = String(formData.get("lineHeight") ?? "1.75").slice(0, 10);
+  const allowOpenFields = String(formData.get("allowOpenFields")) === "true";
   if (template !== "blank" && content === documentTemplates.blank.html) content = documentTemplates[template].html;
   if (template !== "blank" && title === documentTemplates.blank.title) title = documentTemplates[template].title;
-  if (!title || !recipientName || !content) redirect("/dashboard?error=missing");
-  const document = await createDocument({ title, recipientName, recipientEmail, content, template, pageOrientation });
+  if (!title || !recipientName || !content) redirect("/dashboard?error=missing#create");
+  if (!allowOpenFields && /\[[^\]]{2,100}\]|_{4,}/.test(content.replace(/<[^>]+>/g, " "))) redirect("/dashboard?error=open-fields#create");
+  const document = await createDocument({ title, recipientName, recipientEmail, content, template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
   revalidatePath("/dashboard");
-  redirect(`/dashboard?created=${document.token}`);
+  redirect(`/dashboard?created=${document.token}#documents`);
 }
 
 export async function createPdfDocumentAction(formData: FormData) {
   if (!(await isAuthenticated())) redirect("/login");
   const file = formData.get("pdfFile");
   const title = String(formData.get("pdfTitle") ?? "").trim();
-  if (!(file instanceof File) || !title) redirect("/dashboard?pdfError=missing#multiple-signatures");
+  if (!(file instanceof File) || !title) redirect("/dashboard?pdfError=missing#pdf");
   let fields: SignatureField[] = [];
   try {
     fields = JSON.parse(String(formData.get("signatureFields") ?? "[]")) as SignatureField[];
   } catch {
-    redirect("/dashboard?pdfError=fields#multiple-signatures");
+    redirect("/dashboard?pdfError=fields#pdf");
   }
   const signerCount = Math.min(4, Math.max(2, Number(formData.get("signerCount") ?? 2)));
   const signers = Array.from({ length: signerCount }, (_, index) => index + 1).map((number) => ({
@@ -62,7 +69,7 @@ export async function createPdfDocumentAction(formData: FormData) {
   } catch (error) {
     const reason = error instanceof Error && error.message === "invalid-pdf-size" ? "size" :
       error instanceof Error && error.message === "missing-signature-fields" ? "fields" : "invalid";
-    redirect(`/dashboard?pdfError=${reason}#multiple-signatures`);
+    redirect(`/dashboard?pdfError=${reason}#pdf`);
   }
   revalidatePath("/dashboard");
   redirect(`/dashboard?pdfCreated=${documentId}#documents`);
@@ -77,9 +84,14 @@ export async function updateDocumentAction(id: string, formData: FormData) {
   const requestedTemplate = String(formData.get("template") ?? "blank");
   const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
   const pageOrientation = String(formData.get("pageOrientation")) === "landscape" ? "landscape" as const : "portrait" as const;
+  const pageHeader = String(formData.get("pageHeader") ?? "").slice(0, 160);
+  const pageFooter = String(formData.get("pageFooter") ?? "").slice(0, 160);
+  const showPageNumbers = String(formData.get("showPageNumbers")) !== "false";
+  const fontFamily = String(formData.get("fontFamily") ?? "Heebo").slice(0, 80);
+  const lineHeight = String(formData.get("lineHeight") ?? "1.75").slice(0, 10);
   if (!title || !recipientName || !content) redirect(`/dashboard/documents/${id}/edit?error=missing`);
   try {
-    await updateHtmlDocument(id, { title, recipientName, recipientEmail, content, template, pageOrientation });
+    await updateHtmlDocument(id, { title, recipientName, recipientEmail, content, template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
   } catch {
     redirect(`/dashboard/documents/${id}/edit?error=locked`);
   }

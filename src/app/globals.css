@@ -21,7 +21,7 @@
   --radius-xl: 32px;
   --container: 1240px;
   --header-h: 76px;
-  --section-y: clamp(4.5rem, 8vw, 7.5rem);
+  --section-y: clamp(3.5rem, 6vw, 5.5rem);
   --background: var(--ink);
   --foreground: var(--white);
 }
@@ -254,6 +254,35 @@ textarea {
   display: none;
 }
 
+.document-reading-paper .prose-legal h2,
+.document-reading-paper .prose-legal h3 {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.document-reading-paper .prose-legal h2 { margin-top: 2rem; font-size: 1.5rem; }
+.document-reading-paper .prose-legal h3 { margin-top: 1.5rem; font-size: 1.15rem; }
+.document-reading-paper .prose-legal ul,
+.document-reading-paper .prose-legal ol { padding-inline-start: 1.5rem; }
+.document-reading-paper .prose-legal ul { list-style: disc; }
+.document-reading-paper .prose-legal ol { list-style: decimal; }
+
+.document-reading-paper,
+.document-preview {
+  color-scheme: only light;
+  forced-color-adjust: none;
+}
+
+.document-reading-paper {
+  background: #fff !important;
+  color: #0f172a !important;
+}
+
+.site-main > section:not(:first-of-type) {
+  content-visibility: auto;
+  contain-intrinsic-size: 800px;
+}
+
 @page document-portrait {
   size: A4 portrait;
   margin: 16mm;
@@ -308,6 +337,19 @@ textarea {
     font-size: inherit;
     font-weight: inherit;
   }
+
+  .document-print-header,
+  .document-print-footer {
+    position: fixed;
+    right: 0;
+    left: 0;
+    color: #64748b;
+    font-size: 9pt;
+  }
+
+  .document-print-header { top: -8mm; border-bottom: 0.3mm solid #cbd5e1; padding-bottom: 2mm; text-align: center; }
+  .document-print-footer { bottom: -8mm; display: flex; justify-content: space-between; border-top: 0.3mm solid #cbd5e1; padding-top: 2mm; }
+  .document-page-counter::after { content: "עמוד " counter(page); }
 }
 
 :focus-visible {

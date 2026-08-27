@@ -24,6 +24,8 @@ export function MultiSignaturePdfBuilder() {
   const [fields, setFields] = useState<SignatureField[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [fieldWidth, setFieldWidth] = useState(0.3);
+  const [fieldHeight, setFieldHeight] = useState(0.1);
 
   useEffect(() => {
     if (!pdf || !canvasRef.current || !stageRef.current) return;
@@ -92,7 +94,7 @@ export function MultiSignaturePdfBuilder() {
   function placeField(event: React.PointerEvent<HTMLDivElement>) {
     if (!pdf || !canvasRef.current) return;
     const bounds = canvasRef.current.getBoundingClientRect();
-    const width = 0.3, height = 0.1;
+    const width = fieldWidth, height = fieldHeight;
     const x = Math.min(1 - width, Math.max(0, (event.clientX - bounds.left) / bounds.width - width / 2));
     const y = Math.min(1 - height, Math.max(0, (event.clientY - bounds.top) / bounds.height - height / 2));
     setFields((current) => [
@@ -103,8 +105,14 @@ export function MultiSignaturePdfBuilder() {
 
   const complete = signers.every((signer) => fields.some((field) => field.signerId === signer.id));
 
+  function resizeActiveField(width: number, height: number) {
+    setFieldWidth(width); setFieldHeight(height);
+    setFields((current) => current.map((field) => field.signerId === activeSigner ? { ...field, width, height, x: Math.min(field.x, 1 - width), y: Math.min(field.y, 1 - height) } : field));
+  }
+
   return (
     <div className="space-y-5">
+      <ol className="grid grid-cols-3 gap-2 text-center text-xs font-bold"><li className="rounded-xl bg-electric/10 px-2 py-3 text-electric-bright">1. בחירת PDF</li><li className={`rounded-xl px-2 py-3 ${pdf ? "bg-electric/10 text-electric-bright" : "bg-white/5 text-silver-muted"}`}>2. הוספת חותמים</li><li className={`rounded-xl px-2 py-3 ${complete ? "bg-green-400/10 text-green-100" : "bg-white/5 text-silver-muted"}`}>3. סימון חתימות</li></ol>
       <label className="block text-sm font-semibold text-silver">
         שם המסמך
         <input name="pdfTitle" required placeholder="למשל: הסכם בין דוד לשרה" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" />
@@ -147,6 +155,7 @@ export function MultiSignaturePdfBuilder() {
             </div>
           </div>
           <p className="mb-3 text-sm text-silver-muted">בחרו צד ולחצו על המקום במסמך שבו תופיע החתימה שלו.</p>
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3"><span className="text-xs font-bold text-silver">גודל אזור החתימה:</span><button type="button" onClick={() => resizeActiveField(0.24, 0.08)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-silver">קטן</button><button type="button" onClick={() => resizeActiveField(0.3, 0.1)} className="rounded-full border border-electric/25 px-3 py-1.5 text-xs text-sky-100">רגיל</button><button type="button" onClick={() => resizeActiveField(0.42, 0.14)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-silver">גדול</button><span className="text-xs text-silver-muted">אפשר לבחור גודל מחדש גם אחרי הסימון.</span></div>
           <div ref={stageRef} className="w-full overflow-auto rounded-xl bg-slate-700/40 p-2">
             <div onPointerDown={placeField} className="relative mx-auto w-fit cursor-crosshair touch-manipulation">
               <canvas ref={canvasRef} className="block max-w-full bg-white shadow-2xl" />
@@ -166,7 +175,7 @@ export function MultiSignaturePdfBuilder() {
       <button className="btn btn-primary w-full" type="submit" disabled={!pdf || !complete}>
         יצירת {signers.length} קישורים אישיים לחתימה
       </button>
-      {pdf && !complete ? <p className="text-center text-xs text-amber-200">יש לסמן במסמך מקום חתימה לכל אחד משני הצדדים.</p> : null}
+      {pdf && !complete ? <p className="text-center text-xs text-amber-200">יש לסמן במסמך מקום חתימה לכל אחד מהחותמים.</p> : null}
     </div>
   );
 }

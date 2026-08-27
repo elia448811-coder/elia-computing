@@ -1,10 +1,8 @@
 export const navLinks = [
   { href: "#home", label: "ראשי" },
-  { href: "#about", label: "אודות" },
   { href: "#services", label: "שירותים" },
-  { href: "#business", label: "פתרונות לעסקים" },
-  { href: "#websites", label: "בניית אתרים" },
   { href: "#packages", label: "חבילות" },
+  { href: "#process", label: "תהליך עבודה" },
   { href: "#faq", label: "שאלות נפוצות" },
   { href: "#contact", label: "צור קשר" },
 ] as const;

@@ -10,14 +10,14 @@ export function LegalDocumentTemplate({ template }: { template: DocumentTemplate
 
   return (
     <>
-      <div className="mb-7 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] p-4 text-sm leading-relaxed text-amber-50">
+      <div className="mb-7 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm leading-relaxed text-amber-950">
         המסמך הוא נוסח כללי לצורכי מידע ועבודה ואינו ייעוץ משפטי. תנאי עסקה פרטנית והוראות דין שאינן ניתנות להתניה גוברים עליו. מומלץ לקבל בדיקה של עורך דין לפני שימוש מחייב.
       </div>
       <div dangerouslySetInnerHTML={{ __html: html }} />
-      <div className="mt-10 rounded-2xl border border-electric/20 bg-electric/[0.06] p-5">
-        <p className="font-bold text-white">צריכים מסמך מותאם ללקוח?</p>
-        <p className="mt-2 text-sm text-silver-muted">באזור הניהול ניתן לבחור את התבנית, לערוך כל סעיף וליצור קישור חתימה.</p>
-        <Link href="/login" className="btn btn-secondary mt-4 text-sm">מעבר לאזור הניהול</Link>
+      <div className="no-print mt-10 rounded-2xl border border-sky-200 bg-sky-50 p-5">
+        <p className="font-bold text-slate-950">צריכים מסמך מותאם ללקוח?</p>
+        <p className="mt-2 text-sm text-slate-600">באזור הניהול ניתן לבחור את התבנית, לערוך כל סעיף וליצור קישור חתימה.</p>
+        <Link href="/login" className="mt-4 inline-flex rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white">מעבר לאזור הניהול</Link>
       </div>
     </>
   );

@@ -1,4 +1,4 @@
-import { createSession, getTwoFactorStatus, hashIdentifier, verifyLoginTwoFactor } from "@/lib/auth";
+import { createSession, getTwoFactorStatus, hashIdentifier, recordSecurityLogin, verifyLoginTwoFactor } from "@/lib/auth";
 import { verifyAllowedGoogleUser } from "@/lib/firebase-auth-admin";
 
 export async function POST(request: Request) {
@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       return Response.json({ error: verification.locked ? "totp-locked" : "invalid-totp" }, { status: verification.locked ? 429 : 401, headers: { "Cache-Control": "no-store" } });
     }
     await createSession();
+    await recordSecurityLogin(request.headers.get("user-agent") ?? "", forwardedFor);
     return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Firebase session verification failed", error);

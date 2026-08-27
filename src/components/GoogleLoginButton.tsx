@@ -78,8 +78,8 @@ export function GoogleLoginButton() {
   }
 
   async function verifyAuthenticatorCode() {
-    if (!/^\d{6}$/.test(totpCode) || !pendingIdToken) {
-      setError("יש להזין קוד בן 6 ספרות מאפליקציית המאמת.");
+    if (!(/^\d{6}$/.test(totpCode) || /^[A-Z0-9]{4}-?[A-Z0-9]{4}-?[A-Z0-9]{4}$/.test(totpCode)) || !pendingIdToken) {
+      setError("יש להזין קוד בן 6 ספרות או קוד שחזור.");
       return;
     }
     setBusy(true);
@@ -107,9 +107,9 @@ export function GoogleLoginButton() {
       <div>
         <div className="rounded-2xl border border-electric/20 bg-electric/[0.06] p-5">
           <p className="text-center text-sm font-bold text-electric-bright">אימות דו־שלבי</p>
-          <p className="mt-2 text-center text-sm leading-relaxed text-silver-muted">פתחו את אפליקציית המאמת והקלידו את הקוד בן 6 הספרות.</p>
-          <input aria-label="קוד מאפליקציית המאמת" value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} onKeyDown={(event) => { if (event.key === "Enter") void verifyAuthenticatorCode(); }} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" className="mt-4 w-full rounded-xl border border-white/15 bg-[#091627] px-4 py-3 text-center font-mono text-2xl tracking-[0.35em] text-white placeholder:text-silver-muted focus:border-electric/50 focus:outline-none" />
-          <button type="button" onClick={verifyAuthenticatorCode} disabled={busy || totpCode.length !== 6} className="btn btn-primary mt-3 w-full disabled:cursor-not-allowed disabled:opacity-60">{busy ? "מאמת…" : "אימות וכניסה"}</button>
+          <p className="mt-2 text-center text-sm leading-relaxed text-silver-muted">הקלידו קוד בן 6 ספרות מהמאמת, או קוד שחזור חד־פעמי.</p>
+          <input aria-label="קוד מאפליקציית המאמת או קוד שחזור" value={totpCode} onChange={(event) => setTotpCode(event.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "").slice(0, 14))} onKeyDown={(event) => { if (event.key === "Enter") void verifyAuthenticatorCode(); }} autoComplete="one-time-code" maxLength={14} placeholder="000000" className="mt-4 w-full rounded-xl border border-white/15 bg-[#091627] px-4 py-3 text-center font-mono text-xl tracking-[0.2em] text-white placeholder:text-silver-muted focus:border-electric/50 focus:outline-none" />
+          <button type="button" onClick={verifyAuthenticatorCode} disabled={busy || !(totpCode.length === 6 || totpCode.replace(/-/g, "").length === 12)} className="btn btn-primary mt-3 w-full disabled:cursor-not-allowed disabled:opacity-60">{busy ? "מאמת…" : "אימות וכניסה"}</button>
           <button type="button" onClick={cancelTwoFactor} disabled={busy} className="mt-3 w-full text-center text-sm text-silver-muted hover:text-white">ביטול וחזרה</button>
         </div>
         {error ? <p className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-center text-sm text-red-200">{error}</p> : null}

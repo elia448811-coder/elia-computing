@@ -11,7 +11,9 @@ export type DocumentSigner = {
 };
 export type SignatureDocument = {
   id: string; token?: string; title: string; recipientName?: string; recipientEmail?: string;
-  content?: string; template?: string; pageOrientation?: "portrait" | "landscape"; sourceType?: "html" | "pdf"; pdfFileName?: string;
+  content?: string; template?: string; pageOrientation?: "portrait" | "landscape";
+  pageHeader?: string; pageFooter?: string; showPageNumbers?: boolean; fontFamily?: string; lineHeight?: string;
+  sourceType?: "html" | "pdf"; pdfFileName?: string;
   pdfChunkCount?: number; pdfByteLength?: number; pdfPageCount?: number; fields?: SignatureField[];
   signers?: DocumentSigner[]; createdAt: string; signedAt?: string; signerName?: string;
   signature?: string; signedContentHash?: string; signerIpHash?: string; signerUserAgent?: string;
@@ -112,7 +114,7 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
   return document;
 }
 
-export async function updateHtmlDocument(id: string, input: Pick<SignatureDocument, "title" | "recipientName" | "recipientEmail" | "content" | "template" | "pageOrientation">) {
+export async function updateHtmlDocument(id: string, input: Pick<SignatureDocument, "title" | "recipientName" | "recipientEmail" | "content" | "template" | "pageOrientation" | "pageHeader" | "pageFooter" | "showPageNumbers" | "fontFamily" | "lineHeight">) {
   if ((input.title?.length ?? 0) > 160 || (input.recipientName?.length ?? 0) > 160 ||
       (input.recipientEmail?.length ?? 0) > 320 || (input.content?.length ?? 0) > 500000) throw new Error("Document input too large");
   const snapshot = await findDocumentSnapshot(id);
@@ -123,7 +125,9 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
   await snapshot.ref.update({
     title: input.title.trim(), recipientName: input.recipientName?.trim(), recipientEmail: input.recipientEmail?.trim(),
     content: cleanHtml(input.content ?? ""), template: input.template ?? "blank",
-    pageOrientation: input.pageOrientation === "landscape" ? "landscape" : "portrait", updatedAt,
+    pageOrientation: input.pageOrientation === "landscape" ? "landscape" : "portrait",
+    pageHeader: input.pageHeader?.trim().slice(0, 160) ?? "", pageFooter: input.pageFooter?.trim().slice(0, 160) ?? "",
+    showPageNumbers: input.showPageNumbers !== false, fontFamily: input.fontFamily ?? "Heebo", lineHeight: input.lineHeight ?? "1.75", updatedAt,
   });
   return { ...expose(current), ...input, content: cleanHtml(input.content ?? ""), updatedAt };
 }
@@ -135,6 +139,8 @@ export async function duplicateHtmlDocument(id: string) {
     title: `עותק של ${document.title}`.slice(0, 160), recipientName: document.recipientName ?? "לקוח חדש",
     recipientEmail: "", content: document.content, template: document.template ?? "blank",
     pageOrientation: document.pageOrientation ?? "portrait",
+    pageHeader: document.pageHeader ?? "", pageFooter: document.pageFooter ?? "", showPageNumbers: document.showPageNumbers !== false,
+    fontFamily: document.fontFamily ?? "Heebo", lineHeight: document.lineHeight ?? "1.75",
   });
 }
 

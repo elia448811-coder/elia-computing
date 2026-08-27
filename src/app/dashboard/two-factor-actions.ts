@@ -16,9 +16,10 @@ export async function confirmTwoFactorAction(code: string) {
   if (!(await isAuthenticated())) return { ok: false as const, error: "unauthorized" };
   if (!/^\d{6}$/.test(code)) return { ok: false as const, error: "invalid-code" };
   try {
-    if (!(await confirmTwoFactorEnrollment(code))) return { ok: false as const, error: "invalid-code" };
+    const confirmation = await confirmTwoFactorEnrollment(code);
+    if (!confirmation.ok) return { ok: false as const, error: "invalid-code" };
     await createSession();
-    return { ok: true as const };
+    return { ok: true as const, recoveryCodes: confirmation.recoveryCodes };
   } catch (error) {
     console.error("Could not confirm two-factor enrollment", error);
     return { ok: false as const, error: "setup-failed" };

@@ -19,6 +19,7 @@ type AuthState = {
   totpSecretCipher?: string | null;
   totpPendingSecretCipher?: string | null;
   totpPendingExpiresAt?: number | null;
+  recoveryCodeHashes?: string[];
 };
 
 function secret() {
@@ -32,6 +33,15 @@ function safeEqual(a: string, b: string) {
 }
 function sign(value: string) { return createHmac("sha256", secret()).update(value).digest("base64url"); }
 export function hashIdentifier(value: string) { return createHmac("sha256", secret()).update(value).digest("hex"); }
+export type SecurityActivity = { id: string; createdAt: string; kind: "login"; device: string; ipHint: string };
+export async function recordSecurityLogin(userAgent: string, ipAddress: string) {
+  const id = randomBytes(12).toString("hex"), ipHash = hashIdentifier(ipAddress);
+  await getDatabase().doc(`securityEvents/${id}`).create({ id, createdAt: new Date().toISOString(), kind: "login", device: userAgent.slice(0, 220) || "דפדפן לא ידוע", ipHint: ipHash.slice(0, 8) });
+}
+export async function getSecurityActivity(): Promise<SecurityActivity[]> {
+  const snapshot = await getDatabase().collection("securityEvents").orderBy("createdAt", "desc").limit(8).get();
+  return snapshot.docs.map((item) => item.data() as SecurityActivity);
+}
 async function state(): Promise<AuthState> {
   const data = (await getDatabase().doc("system/auth").get()).data() as Partial<AuthState> | undefined;
   return {
@@ -41,6 +51,7 @@ async function state(): Promise<AuthState> {
     totpSecretCipher: data?.totpSecretCipher,
     totpPendingSecretCipher: data?.totpPendingSecretCipher,
     totpPendingExpiresAt: data?.totpPendingExpiresAt,
+    recoveryCodeHashes: Array.isArray(data?.recoveryCodeHashes) ? data.recoveryCodeHashes : [],
   };
 }
 
@@ -143,7 +154,16 @@ export async function createSession() {
 
 export async function getTwoFactorStatus() {
   const auth = await state();
-  return { enabled: auth.totpEnabled === true && Boolean(auth.totpSecretCipher) };
+  return { enabled: auth.totpEnabled === true && Boolean(auth.totpSecretCipher), recoveryCodesRemaining: auth.recoveryCodeHashes?.length ?? 0 };
+}
+
+function normalizeRecoveryCode(value: string) { return value.toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+function recoveryCodeHash(value: string) { return createHmac("sha256", secret()).update(`recovery:${normalizeRecoveryCode(value)}`).digest("hex"); }
+function createRecoveryCodes() {
+  return Array.from({ length: 8 }, () => {
+    const value = randomBytes(9).toString("base64url").toUpperCase().replace(/[^A-Z0-9]/g, "").padEnd(12, "X").slice(0, 12);
+    return `${value.slice(0, 4)}-${value.slice(4, 8)}-${value.slice(8, 12)}`;
+  });
 }
 
 export async function beginTwoFactorEnrollment() {
@@ -164,17 +184,19 @@ export async function beginTwoFactorEnrollment() {
 
 export async function confirmTwoFactorEnrollment(code: string) {
   const auth = await state();
-  if (!auth.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now()) return false;
+  if (!auth.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now()) return { ok: false as const, recoveryCodes: [] };
   const secretKey = decryptSecret(auth.totpPendingSecretCipher);
-  if (!validTotp(secretKey, code)) return false;
+  if (!validTotp(secretKey, code)) return { ok: false as const, recoveryCodes: [] };
+  const recoveryCodes = createRecoveryCodes();
   await getDatabase().doc("system/auth").set({
     totpEnabled: true,
     totpSecretCipher: encryptSecret(secretKey),
     totpPendingSecretCipher: null,
     totpPendingExpiresAt: null,
+    recoveryCodeHashes: recoveryCodes.map(recoveryCodeHash),
     sessionVersion: auth.sessionVersion + 1,
   }, { merge: true });
-  return true;
+  return { ok: true as const, recoveryCodes };
 }
 
 export async function cancelTwoFactorEnrollment() {
@@ -191,6 +213,7 @@ export async function disableTwoFactor(code: string) {
       totpSecretCipher: null,
       totpPendingSecretCipher: null,
       totpPendingExpiresAt: null,
+      recoveryCodeHashes: [],
       sessionVersion: Number(data.sessionVersion ?? 1) + 1,
     }, { merge: true });
     return true;
@@ -201,7 +224,17 @@ export async function verifyLoginTwoFactor(code: string, attemptKey: string) {
   const auth = await state();
   if (!auth.totpEnabled || !auth.totpSecretCipher) return { required: false, ok: true, locked: false };
   if (await attemptCount(`totp-${attemptKey}`) >= MAX_ATTEMPTS) return { required: true, ok: false, locked: true };
-  const ok = validTotp(decryptSecret(auth.totpSecretCipher), code);
+  let ok = validTotp(decryptSecret(auth.totpSecretCipher), code);
+  if (!ok && normalizeRecoveryCode(code).length === 12) {
+    const codeHash = recoveryCodeHash(code), ref = getDatabase().doc("system/auth");
+    ok = await getDatabase().runTransaction(async (transaction) => {
+      const current = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
+      const codes = Array.isArray(current?.recoveryCodeHashes) ? current.recoveryCodeHashes : [];
+      if (!codes.some((value) => safeEqual(value, codeHash))) return false;
+      transaction.set(ref, { recoveryCodeHashes: codes.filter((value) => !safeEqual(value, codeHash)) }, { merge: true });
+      return true;
+    });
+  }
   if (!ok) {
     await fail(`totp-${attemptKey}`);
     return { required: true, ok: false, locked: false };
