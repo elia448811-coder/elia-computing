@@ -26,6 +26,31 @@ export function GoogleLoginButton() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [pendingIdToken, setPendingIdToken] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+
+  async function completeLogin(idToken: string, code = "") {
+    const response = await fetch("/api/auth/firebase-session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken, totpCode: code }),
+    });
+    const result = await response.json() as { mfaRequired?: boolean; error?: string };
+    if (response.status === 202 && result.mfaRequired) {
+      setPendingIdToken(idToken);
+      setError("");
+      return false;
+    }
+    if (!response.ok) {
+      if (result.error === "invalid-totp") setError("הקוד מהמאמת אינו נכון או שפג תוקפו.");
+      else if (result.error === "totp-locked") setError("בוצעו יותר מדי ניסיונות. נסו שוב בעוד 15 דקות.");
+      else setError("לא הצלחנו לאמת את חשבון Google. נסו שוב.");
+      return false;
+    }
+    router.replace("/dashboard");
+    router.refresh();
+    return true;
+  }
 
   async function login() {
     setBusy(true);
@@ -40,24 +65,56 @@ export function GoogleLoginButton() {
         setError("הגישה מותרת רק לחשבון Google של אליה.");
         return;
       }
-      const response = await fetch("/api/auth/firebase-session", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken: await result.user.getIdToken() }),
-      });
-      if (!response.ok) {
-        await signOut(auth);
-        setError("לא הצלחנו לאמת את חשבון Google. נסו שוב.");
+      if (!(await completeLogin(await result.user.getIdToken()))) {
+        if (pendingIdToken) await signOut(auth);
         return;
       }
-      router.replace("/dashboard");
-      router.refresh();
     } catch (reason) {
       const code = reason && typeof reason === "object" && "code" in reason ? String(reason.code) : "";
       if (code !== "auth/popup-closed-by-user") setError("הכניסה עם Google לא הושלמה. נסו שוב.");
     } finally {
       setBusy(false);
     }
+  }
+
+  async function verifyAuthenticatorCode() {
+    if (!/^\d{6}$/.test(totpCode) || !pendingIdToken) {
+      setError("יש להזין קוד בן 6 ספרות מאפליקציית המאמת.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await completeLogin(pendingIdToken, totpCode);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelTwoFactor() {
+    setPendingIdToken("");
+    setTotpCode("");
+    setError("");
+    try {
+      await signOut(firebaseAuth());
+    } catch {
+      // The local Firebase session may already be cleared.
+    }
+  }
+
+  if (pendingIdToken) {
+    return (
+      <div>
+        <div className="rounded-2xl border border-electric/20 bg-electric/[0.06] p-5">
+          <p className="text-center text-sm font-bold text-electric-bright">אימות דו־שלבי</p>
+          <p className="mt-2 text-center text-sm leading-relaxed text-silver-muted">פתחו את אפליקציית המאמת והקלידו את הקוד בן 6 הספרות.</p>
+          <input aria-label="קוד מאפליקציית המאמת" value={totpCode} onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, 6))} onKeyDown={(event) => { if (event.key === "Enter") void verifyAuthenticatorCode(); }} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} placeholder="000000" className="mt-4 w-full rounded-xl border border-white/15 bg-[#091627] px-4 py-3 text-center font-mono text-2xl tracking-[0.35em] text-white placeholder:text-silver-muted focus:border-electric/50 focus:outline-none" />
+          <button type="button" onClick={verifyAuthenticatorCode} disabled={busy || totpCode.length !== 6} className="btn btn-primary mt-3 w-full disabled:cursor-not-allowed disabled:opacity-60">{busy ? "מאמת…" : "אימות וכניסה"}</button>
+          <button type="button" onClick={cancelTwoFactor} disabled={busy} className="mt-3 w-full text-center text-sm text-silver-muted hover:text-white">ביטול וחזרה</button>
+        </div>
+        {error ? <p className="mt-4 rounded-xl border border-red-400/30 bg-red-400/10 p-3 text-center text-sm text-red-200">{error}</p> : null}
+      </div>
+    );
   }
 
   return (

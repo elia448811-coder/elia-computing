@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
 
-const quickFields = ["[שם הלקוח]", "[שם העסק]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
+const quickFields = ["[שם הלקוח]", "[שם העסק]", "[שם הפרויקט]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
+const quickFieldLabels: Record<string, string> = {
+  "[שם הלקוח]": "שם הלקוח",
+  "[שם העסק]": "שם העסק של הלקוח",
+  "[שם הפרויקט]": "שם הפרויקט",
+  "[תאריך]": "תאריך",
+  "[סכום]": "סכום",
+  "[מספר עוסק]": "מספר עוסק / חברה",
+  "[חתימת הלקוח]": "חתימת הלקוח",
+};
 
 type DraftStatus = "restoring" | "saving" | "saved";
 type RichDocumentEditorProps = {
@@ -15,12 +24,14 @@ type RichDocumentEditorProps = {
 
 function decorateQuickFields(html: string) {
   const protectedFields: string[] = [];
-  const protectedHtml = html.replace(/<span class="quick-field-token" contenteditable="false">.*?<\/span>/g, (field) => {
-    protectedFields.push(field);
+  const protectedHtml = html.replace(/<span\b[^>]*class="[^"]*quick-field-token[^"]*"[^>]*>.*?<\/span>/g, (token) => {
+    const field = token.match(/data-field="([^"]+)"/)?.[1] ?? quickFields.find((candidate) => token.includes(`>${candidate}</span>`));
+    const value = token.replace(/^<span\b[^>]*>/, "").replace(/<\/span>$/, "");
+    protectedFields.push(field ? `<span class="quick-field-token" contenteditable="true" data-field="${field}">${value}</span>` : token);
     return `__QUICK_FIELD_${protectedFields.length - 1}__`;
   });
   const decorated = quickFields.reduce(
-    (result, field) => result.split(field).join(`<span class="quick-field-token" contenteditable="false">${field}</span>`),
+    (result, field) => result.split(field).join(`<span class="quick-field-token" contenteditable="true" data-field="${field}">${field}</span>`),
     protectedHtml,
   );
   return protectedFields.reduce((result, field, index) => result.replace(`__QUICK_FIELD_${index}__`, field), decorated);
@@ -51,6 +62,7 @@ export function RichDocumentEditor({
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("restoring");
   const [pageHeight, setPageHeight] = useState(1120);
   const [pageCount, setPageCount] = useState(1);
+  const [fieldValues, setFieldValues] = useState<Record<string, string>>({});
 
   const storageKey = `elia-document-draft:${draftKey}`;
   const toolbarButton = "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] px-2.5 text-sm font-bold text-silver transition hover:border-electric/35 hover:bg-electric/[0.08] hover:text-white";
@@ -119,7 +131,20 @@ export function RichDocumentEditor({
   }
 
   function insertQuickField(field: string) {
-    command("insertHTML", `<span class="quick-field-token" contenteditable="false">${field}</span>&nbsp;`);
+    command("insertHTML", `<span class="quick-field-token" contenteditable="true" data-field="${field}">${fieldValues[field] || field}</span>&nbsp;`);
+  }
+
+  function updateQuickField(field: string, value: string) {
+    setFieldValues((current) => ({ ...current, [field]: value }));
+    const detachedRoot = document.createElement("div");
+    detachedRoot.innerHTML = content;
+    const root = editorRef.current || detachedRoot;
+    root.querySelectorAll<HTMLElement>(".quick-field-token").forEach((token) => {
+      if (token.dataset.field === field) token.textContent = value || field;
+    });
+    const next = root.innerHTML;
+    setContent(next);
+    if (contentInputRef.current) contentInputRef.current.value = next;
   }
 
   function applyFontSize(points: string) {
@@ -237,6 +262,16 @@ export function RichDocumentEditor({
 
         {template === "workAgreement" ? <div className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.06] p-4 text-sm leading-relaxed text-sky-100">כל סעיפי החוזה פתוחים לעריכה. השלימו את השדות החכמים המסומנים לפני יצירת הקישור.</div> : null}
         {template === "warrantyPolicy" ? <label className="block rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm font-semibold text-amber-50">במסגרת האחריות שלנו סוכם ש...<textarea value={warrantyAgreement} onChange={(event) => updateWarrantyAgreement(event.target.value)} rows={3} placeholder="למשל: האחריות כוללת שתי שעות הדרכה ועדכון אחד במשך 6 חודשים." className="mt-2 w-full rounded-xl border border-white/15 bg-[#0b1729] px-4 py-3 font-normal leading-relaxed text-white placeholder:text-silver-muted" /><span className="mt-2 block text-xs font-normal text-amber-100/70">הטקסט משתלב מיד בסעיף ההסכמות המיוחדות.</span></label> : null}
+
+        {template !== "blank" ? (
+          <details open className="rounded-2xl border border-electric/15 bg-electric/[0.045] p-4 sm:p-5">
+            <summary className="cursor-pointer font-bold text-white">מילוי אוטומטי של פרטי המסמך</summary>
+            <p className="mt-2 text-xs leading-relaxed text-silver-muted">הקלידו פעם אחת והפרט יתעדכן בכל המקומות במסמך. אפשר גם ללחוץ ישירות על שדה כחול בתוך הדף ולערוך אותו ידנית.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {quickFields.filter((field) => field !== "[חתימת הלקוח]").map((field) => <label key={field} className="text-xs font-semibold text-silver">{quickFieldLabels[field]}<input value={fieldValues[field] ?? ""} onChange={(event) => updateQuickField(field, event.target.value)} placeholder={field} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white placeholder:text-silver-muted focus:border-electric/45 focus:outline-none" /></label>)}
+            </div>
+          </details>
+        ) : null}
 
         {view === "edit" ? (
           <div className="overflow-visible rounded-[24px] border border-white/12 bg-[#020813] shadow-2xl">

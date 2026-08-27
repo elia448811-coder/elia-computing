@@ -4,8 +4,9 @@ import { redirect } from "next/navigation";
 import { DocumentLibrary } from "@/components/DocumentLibrary";
 import { MultiSignaturePdfBuilder } from "@/components/MultiSignaturePdfBuilder";
 import { RichDocumentEditor } from "@/components/RichDocumentEditor";
+import { TwoFactorSettings } from "@/components/TwoFactorSettings";
 import { siteConfig } from "@/data/site";
-import { isAuthenticated } from "@/lib/auth";
+import { getTwoFactorStatus, isAuthenticated } from "@/lib/auth";
 import { listDocuments } from "@/lib/documents";
 import { changePasswordAction, createDocumentAction, createPdfDocumentAction, logoutAction } from "./actions";
 
@@ -18,7 +19,7 @@ type DashboardQuery = {
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardQuery> }) {
   if (!(await isAuthenticated())) redirect("/login");
-  const [query, documents] = await Promise.all([searchParams, listDocuments()]);
+  const [query, documents, twoFactor] = await Promise.all([searchParams, listDocuments(), getTwoFactorStatus()]);
   const activeDocuments = documents.filter((document) => !document.archivedAt);
   const completed = activeDocuments.filter((document) => document.sourceType === "pdf" ? document.signers?.every((signer) => signer.signedAt) : document.signedAt).length;
   const waiting = activeDocuments.length - completed;
@@ -83,16 +84,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
         <details id="security" className="glass mt-7 rounded-[var(--radius-xl)] p-6 sm:p-8">
           <summary className="cursor-pointer text-xl font-bold text-white">אבטחת החשבון ושינוי סיסמה</summary>
-          <div className="mt-6 grid gap-7 border-t border-white/10 pt-6 lg:grid-cols-[0.75fr_1.25fr] lg:items-start">
-            <div><p className="text-sm font-bold text-electric-bright">גישה מוגנת</p><h2 className="mt-1 text-2xl font-bold text-white">שינוי סיסמה</h2><p className="mt-3 text-sm leading-relaxed text-silver-muted">לאחר השינוי כל החיבורים הישנים מתבטלים מיד.</p></div>
-            <form action={changePasswordAction} className="grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 space-y-6 border-t border-white/10 pt-6">
+            <TwoFactorSettings initialEnabled={twoFactor.enabled} />
+            <div className="grid gap-7 rounded-2xl border border-white/[0.08] bg-white/[0.025] p-5 lg:grid-cols-[0.75fr_1.25fr] lg:items-start sm:p-6">
+              <div><p className="text-sm font-bold text-electric-bright">גישה מוגנת</p><h2 className="mt-1 text-2xl font-bold text-white">שינוי סיסמה</h2><p className="mt-3 text-sm leading-relaxed text-silver-muted">לאחר השינוי כל החיבורים הישנים מתבטלים מיד.</p></div>
+              <form action={changePasswordAction} className="grid gap-4 sm:grid-cols-2">
               {query.passwordChanged ? <p className="rounded-xl bg-green-400/10 p-3 text-sm text-green-200 sm:col-span-2">הסיסמה שונתה בהצלחה.</p> : null}
               {query.passwordError ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200 sm:col-span-2">{query.passwordError === "current" ? "הסיסמה הנוכחית אינה נכונה." : query.passwordError === "mismatch" ? "הסיסמאות החדשות אינן תואמות." : "יש לבחור לפחות 12 תווים הכוללים אות גדולה, אות קטנה, מספר וסימן מיוחד."}</p> : null}
               <label className="block text-sm font-semibold text-silver sm:col-span-2">סיסמה נוכחית<input name="currentPassword" type="password" autoComplete="current-password" required className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>
               <label className="block text-sm font-semibold text-silver">סיסמה חדשה<input name="newPassword" type="password" autoComplete="new-password" minLength={12} required className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>
               <label className="block text-sm font-semibold text-silver">אימות סיסמה<input name="confirmation" type="password" autoComplete="new-password" minLength={12} required className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>
               <button className="btn btn-secondary sm:col-span-2" type="submit">עדכון הסיסמה</button>
-            </form>
+              </form>
+            </div>
           </div>
         </details>
       </div>

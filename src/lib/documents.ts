@@ -28,7 +28,7 @@ function cleanHtml(content: string) {
     allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
     allowedAttributes: {
       a: ["href", "target"],
-      span: ["class", "contenteditable", "style", "id"],
+      span: ["class", "contenteditable", "data-field", "style", "id"],
       font: ["size", "color"],
       "*": ["style", "id"],
     },
