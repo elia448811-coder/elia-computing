@@ -4,17 +4,23 @@ import { useEffect, useRef, useState } from "react";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import type { SignatureField } from "@/lib/documents";
 
-const signers = [
+const initialSigners = [
   { id: "side-a", label: "צד ראשון", color: "#38bdf8" },
   { id: "side-b", label: "צד שני", color: "#a78bfa" },
-] as const;
+] as Array<{ id: string; label: string; color: string }>;
+
+const signerColors = ["#38bdf8", "#a78bfa", "#34d399", "#f59e0b"];
+const signerLabels = ["צד ראשון", "צד שני", "צד שלישי", "צד רביעי"];
 
 export function MultiSignaturePdfBuilder() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [signers, setSigners] = useState(initialSigners);
+  const [fileName, setFileName] = useState("");
   const [pdf, setPdf] = useState<PDFDocumentProxy>();
   const [page, setPage] = useState(1);
-  const [activeSigner, setActiveSigner] = useState<string>(signers[0].id);
+  const [activeSigner, setActiveSigner] = useState<string>(initialSigners[0].id);
   const [fields, setFields] = useState<SignatureField[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -48,7 +54,7 @@ export function MultiSignaturePdfBuilder() {
     setError("");
     setFields([]);
     setPdf(undefined);
-    if (!file) return;
+    if (!file) { setFileName(""); return; }
     if (file.type !== "application/pdf" || file.size > 4 * 1024 * 1024) {
       setError("יש לבחור קובץ PDF בגודל של עד 4MB.");
       return;
@@ -59,12 +65,28 @@ export function MultiSignaturePdfBuilder() {
       pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
       const loaded = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
       setPdf(loaded);
+      setFileName(file.name);
       setPage(1);
     } catch {
       setError("הקובץ אינו PDF תקין או שהוא מוגן בסיסמה.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function addSigner() {
+    if (signers.length >= 4) return;
+    const usedLabels = new Set(signers.map((signer) => signer.label));
+    const index = signerLabels.findIndex((label) => !usedLabels.has(label));
+    setSigners((current) => [...current, { id: `side-${Date.now()}-${index}`, label: signerLabels[index], color: signerColors[index] }]);
+  }
+
+  function removeSigner(id: string) {
+    if (signers.length <= 2) return;
+    const remaining = signers.filter((signer) => signer.id !== id);
+    setSigners(remaining);
+    setFields((current) => current.filter((field) => field.signerId !== id));
+    if (activeSigner === id) setActiveSigner(remaining[0].id);
   }
 
   function placeField(event: React.PointerEvent<HTMLDivElement>) {
@@ -87,16 +109,20 @@ export function MultiSignaturePdfBuilder() {
         שם המסמך
         <input name="pdfTitle" required placeholder="למשל: הסכם בין דוד לשרה" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" />
       </label>
-      <label className="block rounded-2xl border border-dashed border-electric/35 bg-electric/[0.05] p-5 text-sm font-semibold text-silver">
-        העלאת מסמך PDF
-        <input name="pdfFile" type="file" accept="application/pdf,.pdf" required onChange={(event) => void loadPdf(event.target.files?.[0])} className="mt-3 block w-full text-sm text-silver file:ml-3 file:rounded-full file:border-0 file:bg-sky-400 file:px-4 file:py-2 file:font-bold file:text-slate-950" />
-        <span className="mt-2 block text-xs font-normal text-silver-muted">קובץ PDF עד 4MB</span>
-      </label>
+      <div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file && fileInputRef.current) { const transfer = new DataTransfer(); transfer.items.add(file); fileInputRef.current.files = transfer.files; void loadPdf(file); } }} className="rounded-2xl border border-dashed border-electric/35 bg-electric/[0.05] p-6 text-center">
+        <input ref={fileInputRef} name="pdfFile" type="file" accept="application/pdf,.pdf" required onChange={(event) => void loadPdf(event.target.files?.[0])} className="sr-only" />
+        <p className="font-bold text-white">גררו לכאן PDF או בחרו קובץ</p>
+        <p className="mt-1 text-xs text-silver-muted">עד 4MB · הקובץ מוצג לפני יצירת קישורי החתימה</p>
+        <button type="button" onClick={() => fileInputRef.current?.click()} className="btn btn-secondary mt-4 min-h-10 px-5 py-2 text-sm">בחירת קובץ</button>
+        {fileName ? <p className="mt-3 text-sm font-bold text-green-200">נבחר: {fileName}</p> : null}
+      </div>
       {error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">{error}</p> : null}
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold text-white">החותמים במסמך</p><p className="text-xs text-silver-muted">אפשר להוסיף עד ארבעה חותמים ולסמן לכל אחד מקום נפרד.</p></div><button type="button" onClick={addSigner} disabled={signers.length >= 4} className="rounded-full border border-electric/30 px-4 py-2 text-sm font-bold text-electric-bright disabled:opacity-40">+ הוספת חותם</button></div>
       <div className="grid gap-4 sm:grid-cols-2">
         {signers.map((signer, index) => (
           <fieldset key={signer.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
             <legend className="px-2 text-sm font-bold" style={{ color: signer.color }}>{signer.label}</legend>
+            {signers.length > 2 ? <button type="button" onClick={() => removeSigner(signer.id)} className="float-left text-xs text-red-200 hover:text-red-100">הסרה</button> : null}
             <input type="hidden" name={`signer${index + 1}Id`} value={signer.id} />
             <input type="hidden" name={`signer${index + 1}Label`} value={signer.label} />
             <label className="block text-xs font-semibold text-silver">שם מלא<input name={`signer${index + 1}Name`} required className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
@@ -136,8 +162,9 @@ export function MultiSignaturePdfBuilder() {
         </div>
       ) : loading ? <p className="text-center text-sm text-silver-muted">טוען את המסמך…</p> : null}
       <input type="hidden" name="signatureFields" value={JSON.stringify(fields)} />
+      <input type="hidden" name="signerCount" value={signers.length} />
       <button className="btn btn-primary w-full" type="submit" disabled={!pdf || !complete}>
-        יצירת שני קישורים לחתימה
+        יצירת {signers.length} קישורים אישיים לחתימה
       </button>
       {pdf && !complete ? <p className="text-center text-xs text-amber-200">יש לסמן במסמך מקום חתימה לכל אחד משני הצדדים.</p> : null}
     </div>

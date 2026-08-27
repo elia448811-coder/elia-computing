@@ -15,12 +15,22 @@ export type SignatureDocument = {
   pdfChunkCount?: number; pdfByteLength?: number; pdfPageCount?: number; fields?: SignatureField[];
   signers?: DocumentSigner[]; createdAt: string; signedAt?: string; signerName?: string;
   signature?: string; signedContentHash?: string; signerIpHash?: string; signerUserAgent?: string;
+  updatedAt?: string; archivedAt?: string | null;
 };
 type StoredSigner = Omit<DocumentSigner, "token"> & { tokenCipher: string };
 type StoredDocument = Omit<SignatureDocument, "token" | "signers"> & { tokenCipher?: string; signers?: StoredSigner[] };
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024;
 const PDF_CHUNK_BYTES = 700 * 1024;
+
+function cleanHtml(content: string) {
+  return sanitizeHtml(content, {
+    allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "table", "thead", "tbody", "tr", "th", "td"],
+    allowedAttributes: { a: ["href", "target"], "*": ["style", "id"] },
+    allowedStyles: { "*": { "text-align": [/^left$/, /^right$/, /^center$/] } },
+    allowedSchemes: ["http", "https", "mailto", "tel"],
+  });
+}
 
 function key() {
   if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET must be configured");
@@ -62,18 +72,24 @@ export async function listDocuments() {
   return snapshot.docs.map((item) => expose(item.data() as StoredDocument));
 }
 
+async function findDocumentSnapshot(id: string) {
+  if (!id || id.length > 160) return undefined;
+  const snapshot = await getDatabase().collection("signatureDocuments").where("id", "==", id).limit(1).get();
+  return snapshot.docs[0];
+}
+
+export async function getDocumentById(id: string) {
+  const snapshot = await findDocumentSnapshot(id);
+  return snapshot ? expose(snapshot.data() as StoredDocument) : undefined;
+}
+
 export async function createDocument(input: Omit<SignatureDocument, "id" | "token" | "createdAt">) {
   if ((input.title?.length ?? 0) > 160 || (input.recipientName?.length ?? 0) > 160 ||
       (input.recipientEmail?.length ?? 0) > 320 || (input.content?.length ?? 0) > 500000) throw new Error("Document input too large");
   const token = randomBytes(48).toString("base64url");
   const document: SignatureDocument = {
     ...input, sourceType: "html",
-    content: sanitizeHtml(input.content ?? "", {
-      allowedTags: ["h1", "h2", "h3", "p", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span"],
-      allowedAttributes: { a: ["href", "target"], "*": ["style", "id"] },
-      allowedStyles: { "*": { "text-align": [/^left$/, /^right$/, /^center$/] } },
-      allowedSchemes: ["http", "https", "mailto", "tel"],
-    }),
+    content: cleanHtml(input.content ?? ""),
     id: randomUUID(), token, createdAt: new Date().toISOString(),
   };
   const { token: plain, signers: _unusedSigners, ...stored } = document;
@@ -81,6 +97,36 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
   if (!plain) throw new Error("Could not create signing token");
   await getDatabase().doc(`signatureDocuments/${hash(plain)}`).create({ ...stored, tokenCipher: encrypt(plain) } satisfies StoredDocument);
   return document;
+}
+
+export async function updateHtmlDocument(id: string, input: Pick<SignatureDocument, "title" | "recipientName" | "recipientEmail" | "content" | "template">) {
+  if ((input.title?.length ?? 0) > 160 || (input.recipientName?.length ?? 0) > 160 ||
+      (input.recipientEmail?.length ?? 0) > 320 || (input.content?.length ?? 0) > 500000) throw new Error("Document input too large");
+  const snapshot = await findDocumentSnapshot(id);
+  if (!snapshot) throw new Error("document-not-found");
+  const current = snapshot.data() as StoredDocument;
+  if (current.sourceType === "pdf" || current.signedAt) throw new Error("document-locked");
+  const updatedAt = new Date().toISOString();
+  await snapshot.ref.update({
+    title: input.title.trim(), recipientName: input.recipientName?.trim(), recipientEmail: input.recipientEmail?.trim(),
+    content: cleanHtml(input.content ?? ""), template: input.template ?? "blank", updatedAt,
+  });
+  return { ...expose(current), ...input, content: cleanHtml(input.content ?? ""), updatedAt };
+}
+
+export async function duplicateHtmlDocument(id: string) {
+  const document = await getDocumentById(id);
+  if (!document || document.sourceType === "pdf" || !document.content) throw new Error("document-not-duplicable");
+  return createDocument({
+    title: `עותק של ${document.title}`.slice(0, 160), recipientName: document.recipientName ?? "לקוח חדש",
+    recipientEmail: "", content: document.content, template: document.template ?? "blank",
+  });
+}
+
+export async function setDocumentArchived(id: string, archived: boolean) {
+  const snapshot = await findDocumentSnapshot(id);
+  if (!snapshot) throw new Error("document-not-found");
+  await snapshot.ref.update({ archivedAt: archived ? new Date().toISOString() : null, updatedAt: new Date().toISOString() });
 }
 
 export async function createPdfDocument(input: {

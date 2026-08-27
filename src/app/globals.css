@@ -347,3 +347,30 @@ textarea {
     transform: none;
   }
 }
+
+@media print {
+  header,
+  footer,
+  .no-print,
+  a[href="#main"] {
+    display: none !important;
+  }
+
+  body,
+  main,
+  article {
+    background: white !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .document-preview {
+    border: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}

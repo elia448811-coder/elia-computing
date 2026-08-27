@@ -3,6 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
+import { PrintDocumentButton } from "@/components/PrintDocumentButton";
 import { getSignerByToken } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
@@ -30,7 +31,7 @@ export default async function SignPage({ params, searchParams }: {
         <article className="glass rounded-[var(--radius-xl)] p-5 sm:p-9">
           <div className="border-b border-white/10 pb-6">
             <p className="text-sm font-bold text-electric-bright">מסמך לחתימה ידנית</p>
-            <h1 className="mt-2 text-3xl font-bold text-white">{document.title}</h1>
+            <div className="mt-2 flex flex-wrap items-start justify-between gap-3"><h1 className="text-3xl font-bold text-white">{document.title}</h1>{!isPdf ? <PrintDocumentButton /> : null}</div>
             <p className="mt-2 text-silver-muted">הקישור האישי של {signer?.label ?? "החותם"}: {signerName}</p>
           </div>
 
@@ -49,7 +50,7 @@ export default async function SignPage({ params, searchParams }: {
               {isPdf && allComplete ? <a href={`/api/sign/${token}/pdf?download=1`} className="btn btn-primary mt-5 w-full sm:w-auto">הורדת המסמך החתום</a> : isPdf ? <p className="mt-4 text-sm text-green-100">המסמך ממתין כעת לחתימה של הצד השני.</p> : null}
             </div>
           ) : (
-            <form action={action} className="space-y-5 border-t border-white/10 pt-7">
+            <form action={action} className="no-print space-y-5 border-t border-white/10 pt-7">
               {query.error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">יש לצייר חתימה ולאשר שקראת את המסמך.</p> : null}
               <label className="block text-sm font-semibold text-silver">שם מלא<input name="signerName" required defaultValue={signerName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>
               <div><span className="mb-2 block text-sm font-semibold text-silver">החתימה שלך ביד</span><HandSignaturePad /></div>

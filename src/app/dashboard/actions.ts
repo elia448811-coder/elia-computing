@@ -1,8 +1,11 @@
 "use server";
 
+import { createHash } from "node:crypto";
+import { Resend } from "resend";
 import { changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
-import { createDocument, createPdfDocument, type SignatureField } from "@/lib/documents";
+import { createDocument, createPdfDocument, duplicateHtmlDocument, getDocumentById, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
+import { siteConfig } from "@/data/site";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -38,7 +41,8 @@ export async function createPdfDocumentAction(formData: FormData) {
   } catch {
     redirect("/dashboard?pdfError=fields#multiple-signatures");
   }
-  const signers = [1, 2].map((number) => ({
+  const signerCount = Math.min(4, Math.max(2, Number(formData.get("signerCount") ?? 2)));
+  const signers = Array.from({ length: signerCount }, (_, index) => index + 1).map((number) => ({
     id: String(formData.get(`signer${number}Id`) ?? ""),
     label: String(formData.get(`signer${number}Label`) ?? ""),
     name: String(formData.get(`signer${number}Name`) ?? "").trim(),
@@ -61,6 +65,60 @@ export async function createPdfDocumentAction(formData: FormData) {
   }
   revalidatePath("/dashboard");
   redirect(`/dashboard?pdfCreated=${documentId}#documents`);
+}
+
+export async function updateDocumentAction(id: string, formData: FormData) {
+  if (!(await isAuthenticated())) redirect("/login");
+  const title = String(formData.get("title") ?? "").trim();
+  const recipientName = String(formData.get("recipientName") ?? "").trim();
+  const recipientEmail = String(formData.get("recipientEmail") ?? "").trim();
+  const content = String(formData.get("content") ?? "").trim();
+  const requestedTemplate = String(formData.get("template") ?? "blank");
+  const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
+  if (!title || !recipientName || !content) redirect(`/dashboard/documents/${id}/edit?error=missing`);
+  try {
+    await updateHtmlDocument(id, { title, recipientName, recipientEmail, content, template });
+  } catch {
+    redirect(`/dashboard/documents/${id}/edit?error=locked`);
+  }
+  revalidatePath("/dashboard");
+  redirect(`/dashboard/documents/${id}/edit?saved=1`);
+}
+
+export async function duplicateDocumentAction(id: string) {
+  if (!(await isAuthenticated())) redirect("/login");
+  const duplicate = await duplicateHtmlDocument(id);
+  revalidatePath("/dashboard");
+  redirect(`/dashboard?duplicated=${duplicate.id}#documents`);
+}
+
+export async function archiveDocumentAction(id: string, formData: FormData) {
+  if (!(await isAuthenticated())) redirect("/login");
+  await setDocumentArchived(id, String(formData.get("archived")) === "true");
+  revalidatePath("/dashboard");
+}
+
+export async function sendDocumentEmailAction(id: string, signerId: string) {
+  if (!(await isAuthenticated())) redirect("/login");
+  const document = await getDocumentById(id);
+  if (!document) redirect("/dashboard?mailError=missing#documents");
+  const signer = signerId ? document.signers?.find((item) => item.id === signerId) : undefined;
+  const email = signer?.email || document.recipientEmail;
+  const name = signer?.name || document.recipientName || "לקוח/ה";
+  const token = signer?.token || document.token;
+  const from = process.env.CONTACT_FROM_EMAIL?.trim();
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!email || !token || !from || !apiKey) redirect("/dashboard?mailError=config#documents");
+  const url = `${siteConfig.url}/sign/${token}`;
+  const resend = new Resend(apiKey);
+  const { error } = await resend.emails.send({
+    from,
+    to: [email],
+    subject: `מסמך לחתימה: ${document.title}`,
+    text: [`שלום ${name},`, "", `ממתין לך מסמך לחתימה מאת ${siteConfig.name}:`, document.title, "", `פתיחת המסמך והחתימה: ${url}`, "", "הקישור אישי ואין להעבירו לאחר."].join("\n"),
+  }, { idempotencyKey: `document/${id}/${signerId || "recipient"}/${createHash("sha256").update(`${email}|${url}`).digest("hex").slice(0, 20)}/${Math.floor(Date.now() / 300000)}` });
+  if (error) redirect("/dashboard?mailError=send#documents");
+  redirect("/dashboard?sent=1#documents");
 }
 
 export async function changePasswordAction(formData: FormData) {
