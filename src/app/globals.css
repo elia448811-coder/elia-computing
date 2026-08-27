@@ -250,6 +250,66 @@ textarea {
   outline-offset: 2px;
 }
 
+.document-print-root {
+  display: none;
+}
+
+@page document-portrait {
+  size: A4 portrait;
+  margin: 16mm;
+}
+
+@page document-landscape {
+  size: A4 landscape;
+  margin: 16mm;
+}
+
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .document-print-root,
+  .document-print-root * {
+    visibility: visible !important;
+  }
+
+  .document-print-root {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: #fff;
+    color: #0f172a;
+    font-size: 12pt;
+    line-height: 1.55;
+  }
+
+  .document-print-root[data-orientation="portrait"] {
+    page: document-portrait;
+  }
+
+  .document-print-root[data-orientation="landscape"] {
+    page: document-landscape;
+  }
+
+  .document-print-root .quick-field-token {
+    margin: 0;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--electric);
   outline-offset: 3px;

@@ -22,10 +22,11 @@ export async function createDocumentAction(formData: FormData) {
   let content = String(formData.get("content") ?? "").trim();
   const requestedTemplate = String(formData.get("template") ?? "blank");
   const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
+  const pageOrientation = String(formData.get("pageOrientation")) === "landscape" ? "landscape" as const : "portrait" as const;
   if (template !== "blank" && content === documentTemplates.blank.html) content = documentTemplates[template].html;
   if (template !== "blank" && title === documentTemplates.blank.title) title = documentTemplates[template].title;
   if (!title || !recipientName || !content) redirect("/dashboard?error=missing");
-  const document = await createDocument({ title, recipientName, recipientEmail, content, template });
+  const document = await createDocument({ title, recipientName, recipientEmail, content, template, pageOrientation });
   revalidatePath("/dashboard");
   redirect(`/dashboard?created=${document.token}`);
 }
@@ -75,9 +76,10 @@ export async function updateDocumentAction(id: string, formData: FormData) {
   const content = String(formData.get("content") ?? "").trim();
   const requestedTemplate = String(formData.get("template") ?? "blank");
   const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
+  const pageOrientation = String(formData.get("pageOrientation")) === "landscape" ? "landscape" as const : "portrait" as const;
   if (!title || !recipientName || !content) redirect(`/dashboard/documents/${id}/edit?error=missing`);
   try {
-    await updateHtmlDocument(id, { title, recipientName, recipientEmail, content, template });
+    await updateHtmlDocument(id, { title, recipientName, recipientEmail, content, template, pageOrientation });
   } catch {
     redirect(`/dashboard/documents/${id}/edit?error=locked`);
   }
