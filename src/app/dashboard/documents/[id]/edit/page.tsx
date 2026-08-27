@@ -34,7 +34,7 @@ export default async function EditDocumentPage({ params, searchParams }: Props) 
         {query.error ? <p className="mb-5 rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-red-100">לא ניתן לשמור. ודאו שכל השדות מלאים ושהמסמך טרם נחתם.</p> : null}
         <form action={action} className="glass space-y-5 rounded-[var(--radius-xl)] p-5 sm:p-8">
           <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold text-silver">שם הלקוח / החותם<input name="recipientName" required defaultValue={document.recipientName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label><label className="block text-sm font-semibold text-silver">אימייל<input name="recipientEmail" type="email" defaultValue={document.recipientEmail} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label></div>
-          <RichDocumentEditor initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} />
+          <RichDocumentEditor initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} draftKey={`document-${document.id}`} />
           <div className="sticky bottom-3 flex flex-wrap gap-3 rounded-2xl border border-white/10 bg-[#07111f]/95 p-3 shadow-2xl backdrop-blur-xl"><button type="submit" className="btn btn-primary flex-1">שמירת כל השינויים</button><Link href="/dashboard#documents" className="btn btn-secondary">ביטול</Link></div>
         </form>
       </div>

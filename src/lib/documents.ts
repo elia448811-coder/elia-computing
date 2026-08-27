@@ -25,9 +25,21 @@ const PDF_CHUNK_BYTES = 700 * 1024;
 
 function cleanHtml(content: string) {
   return sanitizeHtml(content, {
-    allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "table", "thead", "tbody", "tr", "th", "td"],
-    allowedAttributes: { a: ["href", "target"], "*": ["style", "id"] },
-    allowedStyles: { "*": { "text-align": [/^left$/, /^right$/, /^center$/] } },
+    allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
+    allowedAttributes: {
+      a: ["href", "target"],
+      span: ["class", "contenteditable", "style", "id"],
+      font: ["size", "color"],
+      "*": ["style", "id"],
+    },
+    allowedClasses: { span: ["quick-field-token"] },
+    allowedStyles: {
+      "*": {
+        "text-align": [/^left$/, /^right$/, /^center$/],
+        color: [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+        "background-color": [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+      },
+    },
     allowedSchemes: ["http", "https", "mailto", "tel"],
   });
 }
