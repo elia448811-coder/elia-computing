@@ -28,12 +28,8 @@ export function ElectronicBackground() {
       <div className="el-bg" aria-hidden="true">
         <div className="el-grid" />
         <div className="el-traces" />
-        <div className="el-currents">
-          {currents.map((current) => <span key={current} className={`el-current el-current-${current}`} />)}
-        </div>
-        <div className="el-nodes">
-          {nodes.map((node) => <span key={node} className={`el-node el-node-${node}`} />)}
-        </div>
+        <div className="el-currents">{currents.map((current) => <span key={current} className={`el-current el-current-${current}`} />)}</div>
+        <div className="el-nodes">{nodes.map((node) => <span key={node} className={`el-node el-node-${node}`} />)}</div>
         <div className="el-vignette" />
       </div>
     </>

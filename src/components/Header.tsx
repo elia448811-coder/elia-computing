@@ -63,6 +63,9 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <Link href="/login" className="hidden rounded-full px-3 py-2 text-sm font-semibold text-silver hover:text-white md:inline-flex">
+            חתימות מרובות
+          </Link>
           <a href="#contact" className="btn btn-primary hidden px-5 text-sm sm:inline-flex">
             דברו איתי
           </a>
@@ -121,6 +124,9 @@ export function Header() {
           >
             דברו איתי
           </a>
+          <Link href="/login" className="rounded-xl px-3 py-3 text-base text-silver hover:bg-white/5 hover:text-white" onClick={() => setOpen(false)}>
+            חתימות מרובות
+          </Link>
         </nav>
       </div>
     </header>

@@ -15,6 +15,7 @@ export const footerQuickLinks = [
   { href: "#process", label: "תהליך עבודה" },
   { href: "#why-us", label: "למה אנחנו" },
   { href: "#contact", label: "צור קשר" },
+  { href: "/login", label: "חתימות מרובות" },
 ] as const;
 
 export const legalLinks = [
@@ -22,3 +23,4 @@ export const legalLinks = [
   { href: "/accessibility", label: "Accessibility" },
   { href: "/terms", label: "Terms" },
 ] as const;
+
