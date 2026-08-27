@@ -53,7 +53,7 @@ export function RichDocumentEditor({
   const [pageCount, setPageCount] = useState(1);
 
   const storageKey = `elia-document-draft:${draftKey}`;
-  const toolbarButton = "inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm font-bold text-silver transition hover:border-electric/35 hover:bg-electric/[0.08] hover:text-white";
+  const toolbarButton = "inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.045] px-2.5 text-sm font-bold text-silver transition hover:border-electric/35 hover:bg-electric/[0.08] hover:text-white";
 
   const updatePageMetrics = useCallback(() => {
     const paper = editorRef.current ?? previewRef.current;
@@ -120,6 +120,18 @@ export function RichDocumentEditor({
 
   function insertQuickField(field: string) {
     command("insertHTML", `<span class="quick-field-token" contenteditable="false">${field}</span>&nbsp;`);
+  }
+
+  function applyFontSize(points: string) {
+    editorRef.current?.focus();
+    document.execCommand("fontSize", false, "7");
+    editorRef.current?.querySelectorAll('font[size="7"]').forEach((font) => {
+      const span = document.createElement("span");
+      span.style.fontSize = `${points}pt`;
+      while (font.firstChild) span.appendChild(font.firstChild);
+      font.replaceWith(span);
+    });
+    sync();
   }
 
   useEffect(() => {
@@ -229,23 +241,23 @@ export function RichDocumentEditor({
         {view === "edit" ? (
           <div className="overflow-visible rounded-[24px] border border-white/12 bg-[#020813] shadow-2xl">
             <div className={`sticky ${fullscreen ? "top-0" : "top-20"} z-30 rounded-t-[24px] border-b border-white/10 bg-[#081526]/95 shadow-lg backdrop-blur-xl`} role="toolbar" aria-label="כלי עריכת מסמך">
-              <div className="flex flex-wrap items-center gap-2 p-3 sm:p-4">
-                <select aria-label="סגנון טקסט" className="min-h-10 rounded-xl border border-white/10 bg-white/[0.045] px-3 text-sm font-bold text-white" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">טקסט רגיל</option><option value="h2">כותרת ראשית</option><option value="h3">כותרת משנה</option><option value="blockquote">ציטוט</option></select>
-                <div className="flex gap-1 rounded-xl bg-black/15 p-1"><button type="button" title="מודגש" aria-label="מודגש" onClick={() => command("bold")} className={toolbarButton}>B</button><button type="button" title="נטוי" aria-label="נטוי" onClick={() => command("italic")} className={toolbarButton}>I</button><button type="button" title="קו תחתון" aria-label="קו תחתון" onClick={() => command("underline")} className={toolbarButton}>U</button></div>
-                <div className="flex gap-1 rounded-xl bg-black/15 p-1"><button type="button" title="רשימת נקודות" onClick={() => command("insertUnorderedList")} className={toolbarButton}>• רשימה</button><button type="button" title="רשימה ממוספרת" onClick={() => command("insertOrderedList")} className={toolbarButton}>1. רשימה</button></div>
-                <div className="flex gap-1 rounded-xl bg-black/15 p-1"><button type="button" title="ביטול פעולה" aria-label="ביטול פעולה" onClick={() => command("undo")} className={toolbarButton}>↶</button><button type="button" title="חזרה על פעולה" aria-label="חזרה על פעולה" onClick={() => command("redo")} className={toolbarButton}>↷</button></div>
-                <details className="group/tools relative">
-                  <summary className={`${toolbarButton} cursor-pointer list-none`}>כלים נוספים <span className="mr-2 transition group-open/tools:rotate-180">⌄</span></summary>
-                  <div className="absolute left-0 top-12 z-40 grid w-[min(92vw,560px)] grid-cols-2 gap-2 rounded-2xl border border-white/15 bg-[#071424] p-3 shadow-2xl sm:grid-cols-4">
-                    <button type="button" onClick={() => command("justifyRight")} className={toolbarButton}>יישור לימין</button><button type="button" onClick={() => command("justifyCenter")} className={toolbarButton}>מרכוז</button><button type="button" onClick={() => command("justifyLeft")} className={toolbarButton}>יישור לשמאל</button><button type="button" onClick={addLink} className={toolbarButton}>הוספת קישור</button>
-                    <button type="button" onClick={() => command("indent")} className={toolbarButton}>הגדלת הזחה</button><button type="button" onClick={() => command("outdent")} className={toolbarButton}>הקטנת הזחה</button><button type="button" onClick={() => command("insertHorizontalRule")} className={toolbarButton}>קו מפריד</button><button type="button" onClick={addTable} className={toolbarButton}>הוספת טבלה</button>
-                    <label className={`${toolbarButton} cursor-pointer gap-2`}>צבע טקסט<input type="color" defaultValue="#0f172a" onChange={(event) => command("foreColor", event.target.value)} className="h-6 w-7 cursor-pointer border-0 bg-transparent p-0" /></label><label className={`${toolbarButton} cursor-pointer gap-2`}>הדגשה<input type="color" defaultValue="#fef08a" onChange={(event) => command("hiliteColor", event.target.value)} className="h-6 w-7 cursor-pointer border-0 bg-transparent p-0" /></label>
-                    <select aria-label="גודל גופן" defaultValue="3" onChange={(event) => command("fontSize", event.target.value)} className={`${toolbarButton} bg-[#0b192b]`}><option value="2">קטן</option><option value="3">רגיל</option><option value="4">גדול</option><option value="5">גדול מאוד</option></select><button type="button" onClick={() => command("removeFormat")} className={toolbarButton}>ניקוי עיצוב</button>
-                  </div>
-                </details>
-                <button type="button" onClick={() => setFullscreen((value) => !value)} className="ms-auto inline-flex min-h-10 items-center justify-center rounded-xl border border-electric/30 bg-electric/10 px-4 text-sm font-bold text-electric-bright transition hover:bg-electric/15">{fullscreen ? "יציאה ממצב כתיבה" : "מצב כתיבה"}</button>
+              <div className="flex items-center gap-1.5 overflow-x-auto p-3 [scrollbar-width:thin] sm:px-4" dir="rtl">
+                <select aria-label="סגנון טקסט" title="סגנון טקסט" className="h-10 w-32 shrink-0 rounded-lg border border-white/10 bg-[#0b192b] px-2 text-sm font-bold text-white" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">טקסט רגיל</option><option value="h2">כותרת ראשית</option><option value="h3">כותרת משנה</option><option value="blockquote">ציטוט</option></select>
+                <label className="flex h-10 shrink-0 items-center gap-1 rounded-lg border border-electric/30 bg-electric/[0.08] px-2 text-xs font-bold text-electric-bright" title="גודל גופן במספרים">גודל<select aria-label="גודל גופן במספרים" defaultValue="12" onChange={(event) => applyFontSize(event.target.value)} className="h-8 w-16 rounded-md border border-white/15 bg-[#0b192b] px-1 text-center text-sm font-black text-white">{[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>
+                <span className="mx-1 h-7 w-px shrink-0 bg-white/10" aria-hidden="true" />
+                <button type="button" title="מודגש" aria-label="מודגש" onClick={() => command("bold")} className={`${toolbarButton} min-w-10 text-base`}>B</button><button type="button" title="נטוי" aria-label="נטוי" onClick={() => command("italic")} className={`${toolbarButton} min-w-10 font-serif text-base italic`}>I</button><button type="button" title="קו תחתון" aria-label="קו תחתון" onClick={() => command("underline")} className={`${toolbarButton} min-w-10 text-base underline`}>U</button>
+                <span className="mx-1 h-7 w-px shrink-0 bg-white/10" aria-hidden="true" />
+                <button type="button" title="רשימת נקודות" aria-label="רשימת נקודות" onClick={() => command("insertUnorderedList")} className={`${toolbarButton} min-w-10 text-lg`}>☷</button><button type="button" title="רשימה ממוספרת" aria-label="רשימה ממוספרת" onClick={() => command("insertOrderedList")} className={`${toolbarButton} min-w-10`}>1.</button>
+                <button type="button" title="יישור לימין" aria-label="יישור לימין" onClick={() => command("justifyRight")} className={`${toolbarButton} min-w-10 text-lg`}>≡</button><button type="button" title="מרכוז" aria-label="מרכוז" onClick={() => command("justifyCenter")} className={`${toolbarButton} min-w-10 text-lg`}>≣</button><button type="button" title="יישור לשמאל" aria-label="יישור לשמאל" onClick={() => command("justifyLeft")} className={`${toolbarButton} min-w-10 text-lg`}>≡</button>
+                <button type="button" title="הגדלת הזחה" aria-label="הגדלת הזחה" onClick={() => command("indent")} className={`${toolbarButton} min-w-10 text-lg`}>⇥</button><button type="button" title="הקטנת הזחה" aria-label="הקטנת הזחה" onClick={() => command("outdent")} className={`${toolbarButton} min-w-10 text-lg`}>⇤</button>
+                <span className="mx-1 h-7 w-px shrink-0 bg-white/10" aria-hidden="true" />
+                <button type="button" title="ביטול פעולה" aria-label="ביטול פעולה" onClick={() => command("undo")} className={`${toolbarButton} min-w-10 text-lg`}>↶</button><button type="button" title="חזרה על פעולה" aria-label="חזרה על פעולה" onClick={() => command("redo")} className={`${toolbarButton} min-w-10 text-lg`}>↷</button>
+                <button type="button" title="הוספת קישור" aria-label="הוספת קישור" onClick={addLink} className={`${toolbarButton} min-w-10 text-lg`}>🔗</button><button type="button" title="קו מפריד" aria-label="קו מפריד" onClick={() => command("insertHorizontalRule")} className={`${toolbarButton} min-w-10 text-lg`}>―</button><button type="button" title="הוספת טבלה" aria-label="הוספת טבלה" onClick={addTable} className={`${toolbarButton} min-w-10 text-lg`}>▦</button>
+                <label className={`${toolbarButton} min-w-10 cursor-pointer px-1`} title="צבע טקסט"><span className="border-b-4 border-sky-400 px-1 text-base font-black">A</span><input aria-label="צבע טקסט" type="color" defaultValue="#0f172a" onChange={(event) => command("foreColor", event.target.value)} className="h-0 w-0 opacity-0" /></label><label className={`${toolbarButton} min-w-10 cursor-pointer px-1`} title="צבע הדגשה"><span className="rounded bg-yellow-200 px-1 text-base font-black text-slate-900">A</span><input aria-label="צבע הדגשה" type="color" defaultValue="#fef08a" onChange={(event) => command("hiliteColor", event.target.value)} className="h-0 w-0 opacity-0" /></label>
+                <button type="button" title="ניקוי עיצוב" aria-label="ניקוי עיצוב" onClick={() => command("removeFormat")} className={`${toolbarButton} min-w-10`}>Tx</button>
+                <select aria-label="הוספת שדה חכם" title="הוספת שדה חכם" defaultValue="" onChange={(event) => { if (event.target.value) insertQuickField(event.target.value); event.target.value = ""; }} className="h-10 w-36 shrink-0 rounded-lg border border-electric/25 bg-[#0b192b] px-2 text-sm font-bold text-sky-100"><option value="">+ שדה חכם</option>{quickFields.map((field) => <option key={field} value={field}>{field}</option>)}</select>
+                <button type="button" onClick={() => setFullscreen((value) => !value)} className="mr-auto inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-electric/30 bg-electric/10 px-3 text-sm font-bold text-electric-bright transition hover:bg-electric/15">{fullscreen ? "יציאה ממצב כתיבה" : "מצב כתיבה"}</button>
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] px-3 py-3 sm:px-4"><span className="text-xs font-semibold text-silver-muted">שדות חכמים</span>{quickFields.map((field) => <button key={field} type="button" onClick={() => insertQuickField(field)} className="rounded-full border border-electric/20 bg-electric/[0.07] px-3 py-1.5 text-xs font-semibold text-sky-100 transition hover:border-electric/45 hover:bg-electric/[0.14]">{field}</button>)}</div>
             </div>
             <div className="bg-[radial-gradient(circle_at_50%_0%,rgba(69,200,255,.08),transparent_45%)] p-3 sm:p-6 lg:p-8">
               <div className="relative mx-auto w-full max-w-[860px]">{pageGuides}<div ref={editorRef} contentEditable suppressContentEditableWarning onInput={sync} dangerouslySetInnerHTML={{ __html: content }} style={{ colorScheme: "only light" }} className="document-paper rich-editor relative w-full overflow-hidden rounded-md border border-slate-200 bg-white px-6 py-8 text-right leading-8 text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,.38)] focus:outline-none focus:ring-2 focus:ring-electric sm:px-12 sm:py-12" /></div>

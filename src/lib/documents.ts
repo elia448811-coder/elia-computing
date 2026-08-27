@@ -38,6 +38,7 @@ function cleanHtml(content: string) {
         "text-align": [/^left$/, /^right$/, /^center$/],
         color: [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
         "background-color": [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
+        "font-size": [/^(?:8|9|10|11|12|14|16|18|20|22|24|28|32|36|48|72)pt$/],
       },
     },
     allowedSchemes: ["http", "https", "mailto", "tel"],
