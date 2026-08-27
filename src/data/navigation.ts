@@ -8,10 +8,10 @@ export const navLinks = [
 ] as const;
 
 export const footerQuickLinks = [
-  { href: "#about", label: "אודות" },
   { href: "#services", label: "שירותים" },
+  { href: "#packages", label: "חבילות" },
   { href: "#process", label: "תהליך עבודה" },
-  { href: "#why-us", label: "למה אנחנו" },
+  { href: "#faq", label: "שאלות נפוצות" },
   { href: "#contact", label: "צור קשר" },
   { href: "/login", label: "מסמכים וחתימות" },
 ] as const;
