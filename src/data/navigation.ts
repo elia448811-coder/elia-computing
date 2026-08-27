@@ -15,12 +15,14 @@ export const footerQuickLinks = [
   { href: "#process", label: "תהליך עבודה" },
   { href: "#why-us", label: "למה אנחנו" },
   { href: "#contact", label: "צור קשר" },
-  { href: "/login", label: "חתימות מרובות" },
+  { href: "/login", label: "מסמכים וחתימות" },
 ] as const;
 
 export const legalLinks = [
-  { href: "/privacy", label: "Privacy Policy" },
-  { href: "/accessibility", label: "Accessibility" },
-  { href: "/terms", label: "Terms" },
+  { href: "/work-agreement", label: "חוזה עבודה" },
+  { href: "/terms", label: "תנאי שימוש" },
+  { href: "/warranty", label: "מדיניות אחריות" },
+  { href: "/privacy", label: "מדיניות פרטיות" },
+  { href: "/accessibility", label: "נגישות" },
 ] as const;
 

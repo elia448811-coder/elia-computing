@@ -70,7 +70,7 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
     ...input, sourceType: "html",
     content: sanitizeHtml(input.content ?? "", {
       allowedTags: ["h1", "h2", "h3", "p", "br", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span"],
-      allowedAttributes: { a: ["href", "target"], "*": ["style"] },
+      allowedAttributes: { a: ["href", "target"], "*": ["style", "id"] },
       allowedStyles: { "*": { "text-align": [/^left$/, /^right$/, /^center$/] } },
       allowedSchemes: ["http", "https", "mailto", "tel"],
     }),

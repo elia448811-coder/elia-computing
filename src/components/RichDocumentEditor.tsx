@@ -15,6 +15,7 @@ export function RichDocumentEditor() {
   const contentInputRef = useRef<HTMLInputElement>(null);
   const [template, setTemplate] = useState<DocumentTemplateKey>("blank");
   const [title, setTitle] = useState<string>(documentTemplates.blank.title);
+  const [warrantyAgreement, setWarrantyAgreement] = useState("");
 
   function sync() {
     if (contentInputRef.current) contentInputRef.current.value = editorRef.current?.innerHTML ?? "";
@@ -27,8 +28,17 @@ export function RichDocumentEditor() {
   function chooseTemplate(key: DocumentTemplateKey) {
     setTemplate(key);
     setTitle(documentTemplates[key].title);
+    setWarrantyAgreement("");
     if (editorRef.current) editorRef.current.innerHTML = documentTemplates[key].html;
     if (contentInputRef.current) contentInputRef.current.value = documentTemplates[key].html;
+  }
+  function updateWarrantyAgreement(value: string) {
+    setWarrantyAgreement(value);
+    const field = editorRef.current?.querySelector("#warranty-special-terms");
+    if (field) {
+      field.textContent = `במסגרת האחריות שלנו סוכם ש... ${value || "[הקלידו כאן את התנאים הספציפיים שסוכמו עם הלקוח]"}`;
+      sync();
+    }
   }
   function addLink() {
     const url = window.prompt("הדביקו כתובת קישור מלאה");
@@ -44,6 +54,24 @@ export function RichDocumentEditor() {
       </label>
       <p className="mt-2 text-xs leading-relaxed text-silver-muted">בחירת תבנית מחליפה את תוכן הכתבן. לאחר מכן אפשר לערוך כל סעיף, להוסיף או למחוק פרטים.</p>
     </div>
+    {template === "workAgreement" ? (
+      <div className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.06] p-4 text-sm leading-relaxed text-sky-100">
+        חוזה העבודה פתוח לעריכה מלאה: אפשר לשנות את היקף הפרויקט, המחיר, אבני הדרך, הקניין הרוחני, האחריות וכל סעיף אחר לפני יצירת קישור החתימה.
+      </div>
+    ) : null}
+    {template === "warrantyPolicy" ? (
+      <label className="block rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm font-semibold text-amber-50">
+        במסגרת האחריות שלנו סוכם ש...
+        <textarea
+          value={warrantyAgreement}
+          onChange={(event) => updateWarrantyAgreement(event.target.value)}
+          rows={4}
+          placeholder="למשל: האחריות כוללת גם שתי שעות הדרכה ועדכון אחד לטופס במשך 6 חודשים."
+          className="mt-2 w-full rounded-xl border border-white/15 bg-[#0b1729] px-4 py-3 font-normal leading-relaxed text-white placeholder:text-silver-muted"
+        />
+        <span className="mt-2 block text-xs font-normal text-amber-100/70">הטקסט שתכתבו כאן משתלב מיד בסעיף 12 של מסמך האחריות, ועדיין ניתן לערוך אותו גם בתוך הכתבן.</span>
+      </label>
+    ) : null}
     <label className="block text-sm font-semibold text-silver">שם המסמך
       <input name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="למשל: הצעת מחיר לאתר עבור כהן בע״מ" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" />
     </label>

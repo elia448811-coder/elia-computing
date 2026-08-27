@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LegalDocumentTemplate } from "@/components/LegalDocumentTemplate";
 import { LegalPage } from "@/components/LegalPage";
 import { siteConfig } from "@/data/site";
 
@@ -11,21 +12,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <LegalPage title="תנאי שימוש">
-      <p>
-        השימוש באתר {siteConfig.name} מהווה הסכמה לתנאים אלה.
-      </p>
-      <p>
-        תוכן האתר נועד לספק מידע כללי על השירותים. אין לראות בו הצעה מחייבת,
-        ייעוץ משפטי או התחייבות לתוצאה ספציפית ללא התקשרות מסחרית נפרדת.
-      </p>
-      <p>
-        כל הזכויות על עיצוב האתר, המיתוג והתכנים שמורות ל-{siteConfig.name},
-        אלא אם צוין אחרת.
-      </p>
-      <p>
-        ייתכן שהאתר יכלול קישורים חיצוניים. אין לנו שליטה על תוכן אתרים של
-        צדדים שלישיים.
-      </p>
+      <LegalDocumentTemplate template="termsOfUse" />
     </LegalPage>
   );
 }

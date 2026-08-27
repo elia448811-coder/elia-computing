@@ -9,7 +9,7 @@ import { listDocuments } from "@/lib/documents";
 import { siteConfig } from "@/data/site";
 import { changePasswordAction, createDocumentAction, createPdfDocumentAction, logoutAction } from "./actions";
 
-export const metadata: Metadata = { title: "חתימות מרובות", robots: { index: false } };
+export const metadata: Metadata = { title: "מסמכים וחתימות", robots: { index: false } };
 
 type DashboardQuery = {
   created?: string;
@@ -28,8 +28,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-sm font-bold text-electric-bright">אזור ניהול מאובטח</p>
-            <h1 className="text-3xl font-bold text-white sm:text-4xl">חתימות מרובות</h1>
-            <p className="mt-2 max-w-2xl text-silver-muted">מעלים PDF, מסמנים מקום לכל צד ומקבלים שני קישורים נפרדים לחתימה ידנית באצבע.</p>
+            <h1 className="text-3xl font-bold text-white sm:text-4xl">מסמכים וחתימות</h1>
+            <p className="mt-2 max-w-2xl text-silver-muted">יוצרים ועורכים חוזי עבודה, תנאי שימוש ומסמכי אחריות, או מעלים PDF לחתימות מרובות.</p>
           </div>
           <form action={logoutAction}><button className="btn btn-secondary text-sm">יציאה</button></form>
         </div>
@@ -91,9 +91,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         </section>
 
-        <details className="glass mt-7 rounded-[var(--radius-xl)] p-6 sm:p-8">
-          <summary className="cursor-pointer text-xl font-bold text-white">יצירת מסמך חדש מאפס</summary>
-          <p className="mt-2 text-sm text-silver-muted">כתבו מסמך בתוך האתר וצרו עבורו קישור חתימה ידנית אחד.</p>
+        <details open className="glass mt-7 rounded-[var(--radius-xl)] p-6 sm:p-8">
+          <summary className="cursor-pointer text-xl font-bold text-white">יצירת חוזה עבודה או מסמך משפטי</summary>
+          <p className="mt-2 text-sm leading-relaxed text-silver-muted">בחרו תבנית מקצועית, ערכו כל סעיף בתוך האתר והוסיפו תנאים מיוחדים ללקוח. בסיום ייווצר קישור לחתימה ידנית.</p>
           <form action={createDocumentAction} className="mt-6 space-y-4">
             <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold text-silver">שם החותם<input name="recipientName" required className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label><label className="block text-sm font-semibold text-silver">אימייל (אופציונלי)<input name="recipientEmail" type="email" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label></div>
             <RichDocumentEditor />
