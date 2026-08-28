@@ -134,7 +134,9 @@ export function MultiSignaturePdfBuilder() {
             <input type="hidden" name={`signer${index + 1}Id`} value={signer.id} />
             <input type="hidden" name={`signer${index + 1}Label`} value={signer.label} />
             <label className="block text-xs font-semibold text-silver">שם מלא<input name={`signer${index + 1}Name`} required className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
+            <label className="mt-3 block text-xs font-semibold text-silver">תעודת זהות<input name={`signer${index + 1}IdentityNumber`} required inputMode="numeric" pattern="[0-9]{9}" maxLength={9} autoComplete="off" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
             <label className="mt-3 block text-xs font-semibold text-silver">אימייל (אופציונלי)<input name={`signer${index + 1}Email`} type="email" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
+            <label className="mt-3 block text-xs font-semibold text-silver">טלפון (אופציונלי)<input name={`signer${index + 1}Phone`} type="tel" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
           </fieldset>
         ))}
       </div>

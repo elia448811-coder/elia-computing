@@ -250,6 +250,50 @@ textarea {
   outline-offset: 2px;
 }
 
+.signature-field {
+  display: inline-flex;
+  min-width: 13rem;
+  min-height: 5rem;
+  margin: 0.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  border: 2px dashed #8b5cf6;
+  border-radius: 0.75rem;
+  background: #f5f3ff;
+  padding: 0.6rem 1rem;
+  color: #5b21b6;
+  font-weight: 800;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.signature-field-current {
+  border-color: #0284c7;
+  background: #e0f2fe;
+  box-shadow: 0 0 0 4px rgb(14 165 233 / 18%);
+  color: #075985;
+}
+
+.signature-field-signed {
+  border-style: solid;
+  border-color: #16a34a;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.signature-field img {
+  display: block;
+  width: auto;
+  max-width: 12rem;
+  height: auto;
+  max-height: 4.5rem;
+  object-fit: contain;
+}
+
+.signature-field small { font-size: 0.72rem; font-weight: 600; }
+
 .document-print-root {
   display: none;
 }

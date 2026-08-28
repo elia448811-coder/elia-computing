@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
 
-const quickFields = ["[שם הלקוח]", "[שם העסק]", "[שם הפרויקט]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
+const quickFields = ["[שם הלקוח]", "[ת\"ז]", "[שם העסק]", "[שם הפרויקט]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
 const quickFieldLabels: Record<string, string> = {
   "[שם הלקוח]": "שם הלקוח",
+  "[ת\"ז]": "תעודת זהות",
   "[שם העסק]": "שם העסק של הלקוח",
   "[שם הפרויקט]": "שם הפרויקט",
   "[תאריך]": "תאריך",
@@ -27,6 +28,7 @@ type RichDocumentEditorProps = {
   initialFontFamily?: string;
   initialLineHeight?: string;
   draftKey?: string;
+  signers?: Array<{ id: string; label: string; name: string; identityNumber: string }>;
 };
 
 const fontFamilies = [
@@ -67,6 +69,7 @@ export function RichDocumentEditor({
   initialFontFamily = "Heebo",
   initialLineHeight = "1.75",
   draftKey = "new-document",
+  signers = [],
 }: RichDocumentEditorProps) {
   const initialDecoratedContent = decorateQuickFields(initialContent);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -74,6 +77,7 @@ export function RichDocumentEditor({
   const contentInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const allowOpenFieldsRef = useRef<HTMLInputElement>(null);
+  const selectionRangeRef = useRef<Range | null>(null);
   const draftReadyRef = useRef(false);
   const [template, setTemplate] = useState<DocumentTemplateKey>(initialTemplate);
   const [title, setTitle] = useState(initialTitle);
@@ -132,6 +136,7 @@ export function RichDocumentEditor({
   const updateActiveCommands = useCallback(() => {
     const selection = window.getSelection();
     if (!selection?.anchorNode || !editorRef.current?.contains(selection.anchorNode)) return;
+    if (selection.rangeCount) selectionRangeRef.current = selection.getRangeAt(0).cloneRange();
     const commands = ["bold", "italic", "underline", "insertUnorderedList", "insertOrderedList", "justifyRight", "justifyCenter", "justifyLeft"];
     setActiveCommands(new Set(commands.filter((item) => document.queryCommandState(item))));
   }, []);
@@ -173,6 +178,34 @@ export function RichDocumentEditor({
 
   function insertQuickField(field: string) {
     command("insertHTML", `<span class="quick-field-token" contenteditable="true" data-field="${field}">${fieldValues[field] || field}</span>&nbsp;`);
+  }
+
+  function insertSignatureField(signer: { id: string; label: string; name: string }) {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const existing = editor.querySelector<HTMLElement>(`.signature-field[data-signer-id="${CSS.escape(signer.id)}"]`);
+    const marker = document.createElement("span");
+    marker.className = "signature-field";
+    marker.contentEditable = "false";
+    marker.dataset.signerId = signer.id;
+    marker.textContent = `חתימת ${signer.name || signer.label}`;
+    const range = selectionRangeRef.current;
+    if (range && editor.contains(range.commonAncestorContainer)) {
+      range.deleteContents();
+      range.insertNode(marker);
+      range.setStartAfter(marker);
+      range.collapse(true);
+    } else {
+      const paragraph = document.createElement("p");
+      paragraph.append(marker);
+      editor.append(paragraph);
+    }
+    if (existing && existing !== marker) existing.remove();
+    editor.focus();
+    const selection = window.getSelection();
+    selection?.removeAllRanges();
+    if (range) selection?.addRange(range);
+    sync();
   }
 
   function updateQuickField(field: string, value: string) {
@@ -254,7 +287,7 @@ export function RichDocumentEditor({
     if (!form) return;
     const validateBeforeSubmit = (event: Event) => {
       const currentContent = editorRef.current?.innerHTML ?? content;
-      const plain = currentContent.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
+      const plain = currentContent.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replaceAll("[חתימת הלקוח]", "");
       const unresolved = Array.from(new Set([
         ...(plain.match(/\[[^\]]{2,100}\]/g) ?? []),
         ...(plain.match(/_{4,}/g) ?? []).map(() => "קווים ריקים"),
@@ -264,11 +297,17 @@ export function RichDocumentEditor({
         if (!approved) { event.preventDefault(); return; }
         if (allowOpenFieldsRef.current) allowOpenFieldsRef.current.value = "true";
       }
+      const missingSigners = signers.filter((signer) => !currentContent.includes(`data-signer-id="${signer.id}"`));
+      if (missingSigners.length) {
+        window.alert(`יש לסמן בתוך המסמך מקום חתימה עבור: ${missingSigners.map((signer) => signer.name || signer.label).join(", ")}`);
+        event.preventDefault();
+        return;
+      }
       window.localStorage.removeItem(storageKey);
     };
     form.addEventListener("submit", validateBeforeSubmit);
     return () => form.removeEventListener("submit", validateBeforeSubmit);
-  }, [content, storageKey]);
+  }, [content, signers, storageKey]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -352,6 +391,17 @@ export function RichDocumentEditor({
 
         {template === "workAgreement" ? <div className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.06] p-4 text-sm leading-relaxed text-sky-100">כל סעיפי החוזה פתוחים לעריכה. השלימו את השדות החכמים המסומנים לפני יצירת הקישור.</div> : null}
         {template === "warrantyPolicy" ? <label className="block rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm font-semibold text-amber-50">במסגרת האחריות שלנו סוכם ש...<textarea value={warrantyAgreement} onChange={(event) => updateWarrantyAgreement(event.target.value)} rows={3} placeholder="למשל: האחריות כוללת שתי שעות הדרכה ועדכון אחד במשך 6 חודשים." className="mt-2 w-full rounded-xl border border-white/15 bg-[#0b1729] px-4 py-3 font-normal leading-relaxed text-white placeholder:text-silver-muted" /><span className="mt-2 block text-xs font-normal text-amber-100/70">הטקסט משתלב מיד בסעיף ההסכמות המיוחדות.</span></label> : null}
+
+        <section className="rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] p-4 sm:p-5">
+          <p className="font-bold text-white">סימון מקומות החתימה</p>
+          <p className="mt-1 text-xs leading-relaxed text-silver-muted">מקמו את הסמן במקום הרצוי במסמך ולחצו על שם החותם. לחיצה נוספת במקום אחר תעביר לשם את אזור החתימה.</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {signers.map((signer) => {
+              const placed = content.includes(`data-signer-id="${signer.id}"`);
+              return <button key={signer.id} type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => insertSignatureField(signer)} className={`rounded-full border px-4 py-2 text-sm font-bold ${placed ? "border-green-300/30 bg-green-300/10 text-green-100" : "border-violet-300/30 bg-violet-300/10 text-violet-100"}`}>{placed ? "✓ " : "+ "}{signer.name || signer.label}</button>;
+            })}
+          </div>
+        </section>
 
         {template !== "blank" ? (
           <details open className="rounded-2xl border border-electric/15 bg-electric/[0.045] p-4 sm:p-5">

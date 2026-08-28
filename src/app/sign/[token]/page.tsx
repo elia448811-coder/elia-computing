@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
-import { getSignerByToken } from "@/lib/documents";
+import { getSignerByToken, renderHtmlForSigner } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
 export const metadata: Metadata = { title: "חתימה ידנית על מסמך", robots: { index: false } };
@@ -17,13 +17,14 @@ export default async function SignPage({ params, searchParams }: {
   const context = await getSignerByToken(token);
   if (!context) notFound();
   const { document, signer } = context;
-  const isPdf = document.sourceType === "pdf" && signer;
+  const isPdf = document.sourceType === "pdf" && Boolean(signer);
   const signedAt = signer?.signedAt ?? document.signedAt;
   const signerName = signer?.name ?? document.recipientName ?? "";
   const signature = signer?.signature ?? document.signature;
   const allComplete = document.signers?.every((item) => item.signedAt) ?? Boolean(document.signedAt);
-  const hasOpenFields = !isPdf && Boolean((document.content ?? "").replace(/<[^>]+>/g, " ").match(/\[[^\]]{2,100}\]|_{4,}/));
+  const hasOpenFields = !isPdf && Boolean((document.content ?? "").replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", "").match(/\[[^\]]{2,100}\]|_{4,}/));
   const action = signDocumentAction.bind(null, token);
+  const renderedContent = renderHtmlForSigner(document, signer?.id);
 
   return (
     <main id="main" className="min-h-screen px-4 pb-20 pt-28">
@@ -34,7 +35,7 @@ export default async function SignPage({ params, searchParams }: {
           <div className="border-b border-white/10 pb-6">
             <p className="text-sm font-bold text-electric-bright">מסמך לחתימה ידנית</p>
             <div className="mt-2 flex flex-wrap items-start justify-between gap-3"><h1 className="text-3xl font-bold text-white">{document.title}</h1>{!isPdf ? <PrintDocumentButton /> : null}</div>
-            <p className="mt-2 text-silver-muted">הקישור האישי של {signer?.label ?? "החותם"}: {signerName}</p>
+            <p className="mt-2 text-silver-muted">הקישור האישי של {signer?.label ?? "החותם"}: {signerName}{signer?.identityNumber ? ` · ת״ז ${signer.identityNumber}` : ""}</p>
           </div>
 
           {isPdf ? (
@@ -42,7 +43,7 @@ export default async function SignPage({ params, searchParams }: {
               <p className="mb-3 rounded-xl bg-sky-400/10 p-3 text-sm text-sky-100">אזור החתימה שלך מסומן במסגרת כחולה במסמך.</p>
               <iframe title={`תצוגת ${document.title}`} src={`/api/sign/${token}/pdf?preview=1`} className="h-[68vh] min-h-[520px] w-full rounded-2xl border border-white/15 bg-white" />
             </div>
-          ) : <div className="document-preview my-8 rounded-2xl bg-white p-5 leading-8 text-slate-900 sm:p-8" dangerouslySetInnerHTML={{ __html: document.content ?? "" }} />}
+          ) : <div className="document-preview my-8 rounded-2xl bg-white p-5 leading-8 text-slate-900 sm:p-8" dangerouslySetInnerHTML={{ __html: renderedContent }} />}
 
           {hasOpenFields && !signedAt ? <div className="mb-6 rounded-2xl border border-red-300/30 bg-red-300/10 p-5 text-red-100" role="alert"><p className="font-bold">המסמך עדיין כולל פרטים שלא מולאו</p><p className="mt-2 text-sm leading-relaxed">אין לחתום לפני שהשולח משלים את כל השדות ושולח קישור מעודכן.</p></div> : null}
 
@@ -56,7 +57,7 @@ export default async function SignPage({ params, searchParams }: {
           ) : (
             <form action={action} className="no-print space-y-5 border-t border-white/10 pt-7">
               {query.error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">יש לצייר חתימה ולאשר שקראת את המסמך.</p> : null}
-              <label className="block text-sm font-semibold text-silver">שם מלא<input name="signerName" required defaultValue={signerName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>
+              {signer ? <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-sm font-bold text-white">{signer.name}</p><p className="mt-1 text-xs text-silver-muted">תעודת זהות: {signer.identityNumber}</p><input type="hidden" name="signerName" value={signer.name} /></div> : <label className="block text-sm font-semibold text-silver">שם מלא<input name="signerName" required defaultValue={signerName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>}
               <div><span className="mb-2 block text-sm font-semibold text-silver">החתימה שלך ביד</span><HandSignaturePad /></div>
               <label className="flex items-start gap-3 rounded-xl bg-white/[0.04] p-4 text-sm leading-relaxed text-silver"><input name="approved" type="checkbox" required className="mt-1 h-4 w-4 accent-sky-400" /><span>קראתי את המסמך, בדקתי שהפרטים נכונים, ואני מאשר/ת להטמיע בו את החתימה שציירתי.</span></label>
               <button className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={hasOpenFields}>{hasOpenFields ? "ממתין להשלמת פרטי המסמך" : "שמירת החתימה במסמך"}</button>

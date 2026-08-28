@@ -6,7 +6,7 @@ import { getDatabase } from "@/lib/firebase-admin";
 
 export type SignatureField = { id: string; signerId: string; page: number; x: number; y: number; width: number; height: number };
 export type DocumentSigner = {
-  id: string; label: string; name: string; email: string; token: string;
+  id: string; label: string; name: string; identityNumber: string; email: string; phone?: string; token: string;
   signedAt?: string; signature?: string; signerIpHash?: string; signerUserAgent?: string;
 };
 export type SignatureDocument = {
@@ -30,11 +30,11 @@ function cleanHtml(content: string) {
     allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
     allowedAttributes: {
       a: ["href", "target"],
-      span: ["class", "contenteditable", "data-field", "style", "id"],
+      span: ["class", "contenteditable", "data-field", "data-signer-id", "style", "id"],
       font: ["size", "color"],
       "*": ["style", "id"],
     },
-    allowedClasses: { span: ["quick-field-token"] },
+    allowedClasses: { span: ["quick-field-token", "signature-field"] },
     allowedStyles: {
       "*": {
         "text-align": [/^left$/, /^right$/, /^center$/],
@@ -102,15 +102,34 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
   if ((input.title?.length ?? 0) > 160 || (input.recipientName?.length ?? 0) > 160 ||
       (input.recipientEmail?.length ?? 0) > 320 || (input.content?.length ?? 0) > 500000) throw new Error("Document input too large");
   const token = randomBytes(48).toString("base64url");
+  const signers = input.signers?.map((signer, index) => ({
+    ...signer,
+    id: String(signer.id || randomUUID()).slice(0, 100),
+    label: String(signer.label || `חותם ${index + 1}`).trim().slice(0, 80),
+    name: signer.name.trim().slice(0, 160),
+    identityNumber: signer.identityNumber.replace(/\D/g, "").slice(0, 9),
+    email: signer.email.trim().slice(0, 320),
+    phone: signer.phone?.replace(/[^0-9+ -]/g, "").trim().slice(0, 32),
+    token: randomBytes(48).toString("base64url"),
+  }));
+  if (signers?.some((signer) => !signer.name || !/^\d{9}$/.test(signer.identityNumber))) throw new Error("invalid-signers");
   const document: SignatureDocument = {
-    ...input, sourceType: "html",
+    ...input, signers, sourceType: "html",
     content: cleanHtml(input.content ?? ""),
     id: randomUUID(), token, createdAt: new Date().toISOString(),
   };
-  const { token: plain, signers: _unusedSigners, ...stored } = document;
-  void _unusedSigners;
+  const { token: plain, signers: plainSigners, ...stored } = document;
   if (!plain) throw new Error("Could not create signing token");
-  await getDatabase().doc(`signatureDocuments/${hash(plain)}`).create({ ...stored, tokenCipher: encrypt(plain) } satisfies StoredDocument);
+  const database = getDatabase();
+  if (plainSigners?.length) {
+    const storedSigners = plainSigners.map(({ token: signerToken, ...signer }) => ({ ...signer, tokenCipher: encrypt(signerToken) }));
+    const batch = database.batch();
+    batch.create(database.doc(`signatureDocuments/${document.id}`), { ...stored, signers: storedSigners } satisfies StoredDocument);
+    plainSigners.forEach((signer) => batch.create(database.doc(`signatureTokens/${hash(signer.token)}`), { documentId: document.id, signerId: signer.id }));
+    await batch.commit();
+  } else {
+    await database.doc(`signatureDocuments/${hash(plain)}`).create({ ...stored, tokenCipher: encrypt(plain) } satisfies StoredDocument);
+  }
   return document;
 }
 
@@ -120,7 +139,7 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
   const snapshot = await findDocumentSnapshot(id);
   if (!snapshot) throw new Error("document-not-found");
   const current = snapshot.data() as StoredDocument;
-  if (current.sourceType === "pdf" || current.signedAt) throw new Error("document-locked");
+  if (current.sourceType === "pdf" || current.signedAt || current.signers?.some((signer) => signer.signedAt)) throw new Error("document-locked");
   const updatedAt = new Date().toISOString();
   await snapshot.ref.update({
     title: input.title.trim(), recipientName: input.recipientName?.trim(), recipientEmail: input.recipientEmail?.trim(),
@@ -152,7 +171,7 @@ export async function setDocumentArchived(id: string, archived: boolean) {
 
 export async function createPdfDocument(input: {
   title: string; fileName: string; pdfBytes: Uint8Array;
-  signers: Array<Pick<DocumentSigner, "id" | "label" | "name" | "email">>; fields: SignatureField[];
+  signers: Array<Pick<DocumentSigner, "id" | "label" | "name" | "identityNumber" | "email" | "phone">>; fields: SignatureField[];
 }) {
   if (!input.title || input.title.length > 160) throw new Error("invalid-title");
   if (input.pdfBytes.byteLength < 5 || input.pdfBytes.byteLength > MAX_PDF_BYTES) throw new Error("invalid-pdf-size");
@@ -166,10 +185,11 @@ export async function createPdfDocument(input: {
   }
   const id = randomUUID(), createdAt = new Date().toISOString();
   const signers = input.signers.map((signer) => ({
-    ...signer, name: signer.name.trim().slice(0, 160), email: signer.email.trim().slice(0, 320),
+    ...signer, name: signer.name.trim().slice(0, 160), identityNumber: signer.identityNumber.replace(/\D/g, "").slice(0, 9), email: signer.email.trim().slice(0, 320),
+    phone: signer.phone?.replace(/[^0-9+ -]/g, "").trim().slice(0, 32),
     label: signer.label.trim().slice(0, 80), token: randomBytes(48).toString("base64url"),
   }));
-  if (signers.some((signer) => !signer.name || !signer.label)) throw new Error("invalid-signers");
+  if (signers.some((signer) => !signer.name || !/^\d{9}$/.test(signer.identityNumber) || !signer.label)) throw new Error("invalid-signers");
   const chunks: Buffer[] = [];
   for (let offset = 0; offset < input.pdfBytes.byteLength; offset += PDF_CHUNK_BYTES) {
     chunks.push(Buffer.from(input.pdfBytes.slice(offset, offset + PDF_CHUNK_BYTES)));
@@ -243,6 +263,28 @@ export async function signDocument(token: string, signerName: string, signature:
       signerIpHash: audit?.ipHash, signerUserAgent: audit?.userAgent?.slice(0, 300),
     });
     return true;
+  });
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character] ?? character);
+}
+
+export function renderHtmlForSigner(document: SignatureDocument, currentSignerId?: string) {
+  const signerMap = new Map((document.signers ?? []).map((signer) => [signer.id, signer]));
+  return (document.content ?? "").replace(/<span\b([^>]*)>[\s\S]*?<\/span>/gi, (whole, attributes: string) => {
+    if (!/\bclass="[^"]*\bsignature-field\b[^"]*"/i.test(attributes)) return whole;
+    const signerId = attributes.match(/\bdata-signer-id="([^"]+)"/i)?.[1];
+    const signer = signerId ? signerMap.get(signerId) : undefined;
+    if (!signer) return whole;
+    const name = escapeHtml(signer.name);
+    const identity = escapeHtml(signer.identityNumber);
+    if (signer.signature) {
+      return `<span class="signature-field signature-field-signed"><img src="${signer.signature}" alt="חתימת ${name}"><strong>${name}</strong><small>ת״ז ${identity}</small></span>`;
+    }
+    const currentClass = signer.id === currentSignerId ? " signature-field-current" : "";
+    const prompt = signer.id === currentSignerId ? "יש לחתום כאן" : "ממתין לחתימה";
+    return `<span class="signature-field${currentClass}"><strong>${prompt} · ${name}</strong><small>ת״ז ${identity}</small></span>`;
   });
 }
 

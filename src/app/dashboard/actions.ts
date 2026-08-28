@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { Resend } from "resend";
 import { changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
 import { createDocument, createPdfDocument, duplicateHtmlDocument, getDocumentById, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
+import { saveCustomers } from "@/lib/customers";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
 import { siteConfig } from "@/data/site";
 import { revalidatePath } from "next/cache";
@@ -17,8 +18,21 @@ export async function logoutAction() {
 export async function createDocumentAction(formData: FormData) {
   if (!(await isAuthenticated())) redirect("/login");
   let title = String(formData.get("title") ?? "").trim();
-  const recipientName = String(formData.get("recipientName") ?? "").trim();
-  const recipientEmail = String(formData.get("recipientEmail") ?? "").trim();
+  let signers: Array<{ id: string; label: string; name: string; identityNumber: string; email: string; phone: string }> = [];
+  try {
+    const parsed: unknown = JSON.parse(String(formData.get("htmlSigners") ?? "[]"));
+    if (!Array.isArray(parsed)) throw new Error("invalid-signers");
+    signers = parsed.map((item) => {
+      if (!item || typeof item !== "object") throw new Error("invalid-signers");
+      const value = item as Record<string, unknown>;
+      return { id: String(value.id ?? ""), label: String(value.label ?? ""), name: String(value.name ?? ""), identityNumber: String(value.identityNumber ?? ""), email: String(value.email ?? ""), phone: String(value.phone ?? "") };
+    });
+  } catch {
+    redirect("/dashboard?error=signers#create");
+  }
+  if (signers.length < 1 || signers.length > 6 || signers.some((signer) => !signer.id || !signer.name.trim() || !/^\d{9}$/.test(signer.identityNumber))) redirect("/dashboard?error=signers#create");
+  const recipientName = signers[0].name.trim();
+  const recipientEmail = signers[0].email.trim();
   let content = String(formData.get("content") ?? "").trim();
   const requestedTemplate = String(formData.get("template") ?? "blank");
   const template = requestedTemplate in documentTemplates ? requestedTemplate as DocumentTemplateKey : "blank";
@@ -32,8 +46,10 @@ export async function createDocumentAction(formData: FormData) {
   if (template !== "blank" && content === documentTemplates.blank.html) content = documentTemplates[template].html;
   if (template !== "blank" && title === documentTemplates.blank.title) title = documentTemplates[template].title;
   if (!title || !recipientName || !content) redirect("/dashboard?error=missing#create");
-  if (!allowOpenFields && /\[[^\]]{2,100}\]|_{4,}/.test(content.replace(/<[^>]+>/g, " "))) redirect("/dashboard?error=open-fields#create");
-  const document = await createDocument({ title, recipientName, recipientEmail, content, template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
+  if (signers.some((signer) => !content.includes(`data-signer-id="${signer.id}"`))) redirect("/dashboard?error=signature-fields#create");
+  if (!allowOpenFields && /\[[^\]]{2,100}\]|_{4,}/.test(content.replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", ""))) redirect("/dashboard?error=open-fields#create");
+  const document = await createDocument({ title, recipientName, recipientEmail, content, signers: signers.map((signer) => ({ ...signer, token: "" })), template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
+  await saveCustomers(signers.map((signer) => ({ fullName: signer.name, identityNumber: signer.identityNumber, email: signer.email, phone: signer.phone })));
   revalidatePath("/dashboard");
   redirect(`/dashboard?created=${document.token}#documents`);
 }
@@ -54,7 +70,9 @@ export async function createPdfDocumentAction(formData: FormData) {
     id: String(formData.get(`signer${number}Id`) ?? ""),
     label: String(formData.get(`signer${number}Label`) ?? ""),
     name: String(formData.get(`signer${number}Name`) ?? "").trim(),
+    identityNumber: String(formData.get(`signer${number}IdentityNumber`) ?? "").trim(),
     email: String(formData.get(`signer${number}Email`) ?? "").trim(),
+    phone: String(formData.get(`signer${number}Phone`) ?? "").trim(),
   }));
   let documentId = "";
   try {
@@ -66,6 +84,7 @@ export async function createPdfDocumentAction(formData: FormData) {
       fields,
     });
     documentId = document.id;
+    await saveCustomers(signers.map((signer) => ({ fullName: signer.name, identityNumber: signer.identityNumber, email: signer.email, phone: signer.phone })));
   } catch (error) {
     const reason = error instanceof Error && error.message === "invalid-pdf-size" ? "size" :
       error instanceof Error && error.message === "missing-signature-fields" ? "fields" : "invalid";
