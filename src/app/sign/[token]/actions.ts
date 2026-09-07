@@ -5,7 +5,7 @@ import { createHmac } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export async function signDocumentAction(token: string, formData: FormData) {
+export async function signDocumentAction(token: string, expectedRevision: string, formData: FormData) {
   const signerName = String(formData.get("signerName") ?? "").trim();
   const signature = String(formData.get("signature") ?? "").trim();
   const approved = formData.get("approved") === "on";
@@ -13,7 +13,7 @@ export async function signDocumentAction(token: string, formData: FormData) {
   const requestHeaders = await headers();
   const ip = requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ?? requestHeaders.get("x-real-ip") ?? "unknown";
   const ipHash = createHmac("sha256", process.env.AUTH_SECRET ?? "local-audit").update(ip).digest("hex");
-  const saved = await signDocument(token, signerName, signature, {
+  const saved = await signDocument(token, signerName, signature, expectedRevision, {
     ipHash,
     userAgent: requestHeaders.get("user-agent") ?? undefined,
   });

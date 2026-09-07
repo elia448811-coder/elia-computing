@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
-import { getSignerByToken, renderHtmlForSigner } from "@/lib/documents";
+import { documentRevision, getSignerByToken, renderHtmlForSigner } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
 export const metadata: Metadata = { title: "חתימה ידנית על מסמך", robots: { index: false } };
+export const dynamic = "force-dynamic";
 
 export default async function SignPage({ params, searchParams }: {
   params: Promise<{ token: string }>;
@@ -23,7 +24,7 @@ export default async function SignPage({ params, searchParams }: {
   const signature = signer?.signature ?? document.signature;
   const allComplete = document.signers?.every((item) => item.signedAt) ?? Boolean(document.signedAt);
   const hasOpenFields = !isPdf && Boolean((document.content ?? "").replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", "").match(/\[[^\]]{2,100}\]|_{4,}/));
-  const action = signDocumentAction.bind(null, token);
+  const action = signDocumentAction.bind(null, token, documentRevision(document));
   const renderedContent = renderHtmlForSigner(document, signer?.id);
 
   return (
@@ -56,7 +57,7 @@ export default async function SignPage({ params, searchParams }: {
             </div>
           ) : (
             <form action={action} className="no-print space-y-5 border-t border-white/10 pt-7">
-              {query.error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">יש לצייר חתימה ולאשר שקראת את המסמך.</p> : null}
+              {query.error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">החתימה לא נשמרה. יש לבדוק שוב את המסמך המעודכן, לצייר חתימה תקינה ולאשר שקראת אותו.</p> : null}
               {signer ? <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-sm font-bold text-white">{signer.name}</p><p className="mt-1 text-xs text-silver-muted">תעודת זהות: {signer.identityNumber}</p><input type="hidden" name="signerName" value={signer.name} /></div> : <label className="block text-sm font-semibold text-silver">שם מלא<input name="signerName" required defaultValue={signerName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>}
               <div><span className="mb-2 block text-sm font-semibold text-silver">החתימה שלך ביד</span><HandSignaturePad /></div>
               <label className="flex items-start gap-3 rounded-xl bg-white/[0.04] p-4 text-sm leading-relaxed text-silver"><input name="approved" type="checkbox" required className="mt-1 h-4 w-4 accent-sky-400" /><span>קראתי את המסמך, בדקתי שהפרטים נכונים, ואני מאשר/ת להטמיע בו את החתימה שציירתי.</span></label>

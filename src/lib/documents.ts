@@ -3,11 +3,12 @@ import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, 
 import { PDFDocument, rgb } from "pdf-lib";
 import sanitizeHtml from "sanitize-html";
 import { getDatabase } from "@/lib/firebase-admin";
+import { normalizeSignatureImage } from "@/lib/signature-image";
 
 export type SignatureField = { id: string; signerId: string; page: number; x: number; y: number; width: number; height: number };
 export type DocumentSigner = {
   id: string; label: string; name: string; identityNumber: string; email: string; phone?: string; token: string;
-  signedAt?: string; signature?: string; signerIpHash?: string; signerUserAgent?: string;
+  signedAt?: string; signature?: string; signerIpHash?: string; signerUserAgent?: string; signedContentHash?: string;
 };
 export type SignatureDocument = {
   id: string; token?: string; title: string; recipientName?: string; recipientEmail?: string;
@@ -24,6 +25,20 @@ type StoredDocument = Omit<SignatureDocument, "token" | "signers"> & { tokenCiph
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024;
 const PDF_CHUNK_BYTES = 700 * 1024;
+
+export function documentRevision(document: SignatureDocument | StoredDocument) {
+  // Exclude signature progress so other recipients can sign the same reviewed revision.
+  const content = {
+    id: document.id, title: document.title, sourceType: document.sourceType ?? "html",
+    content: document.content ?? "", pdfHash: document.sourceType === "pdf" ? document.signedContentHash : undefined,
+    fields: document.fields ?? [], recipientName: document.recipientName ?? "", recipientEmail: document.recipientEmail ?? "",
+    template: document.template ?? "blank", pageOrientation: document.pageOrientation ?? "portrait",
+    pageHeader: document.pageHeader ?? "", pageFooter: document.pageFooter ?? "", showPageNumbers: document.showPageNumbers !== false,
+    fontFamily: document.fontFamily ?? "Heebo", lineHeight: document.lineHeight ?? "1.75",
+    signers: (document.signers ?? []).map(({ id, label, name, identityNumber, email, phone }) => ({ id, label, name, identityNumber, email, phone: phone ?? "" })),
+  };
+  return createHash("sha256").update(JSON.stringify(content)).digest("hex");
+}
 
 function cleanHtml(content: string) {
   return sanitizeHtml(content, {
@@ -138,17 +153,22 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
       (input.recipientEmail?.length ?? 0) > 320 || (input.content?.length ?? 0) > 500000) throw new Error("Document input too large");
   const snapshot = await findDocumentSnapshot(id);
   if (!snapshot) throw new Error("document-not-found");
-  const current = snapshot.data() as StoredDocument;
-  if (current.sourceType === "pdf" || current.signedAt || current.signers?.some((signer) => signer.signedAt)) throw new Error("document-locked");
   const updatedAt = new Date().toISOString();
-  await snapshot.ref.update({
+  const update = {
     title: input.title.trim(), recipientName: input.recipientName?.trim(), recipientEmail: input.recipientEmail?.trim(),
     content: cleanHtml(input.content ?? ""), template: input.template ?? "blank",
     pageOrientation: input.pageOrientation === "landscape" ? "landscape" : "portrait",
     pageHeader: input.pageHeader?.trim().slice(0, 160) ?? "", pageFooter: input.pageFooter?.trim().slice(0, 160) ?? "",
     showPageNumbers: input.showPageNumbers !== false, fontFamily: input.fontFamily ?? "Heebo", lineHeight: input.lineHeight ?? "1.75", updatedAt,
+  };
+  return getDatabase().runTransaction(async (transaction) => {
+    const fresh = await transaction.get(snapshot.ref);
+    if (!fresh.exists) throw new Error("document-not-found");
+    const current = fresh.data() as StoredDocument;
+    if (current.sourceType === "pdf" || current.signedAt || current.signers?.some((signer) => signer.signedAt)) throw new Error("document-locked");
+    transaction.update(snapshot.ref, update);
+    return { ...expose(current), ...update };
   });
-  return { ...expose(current), ...input, content: cleanHtml(input.content ?? ""), updatedAt };
 }
 
 export async function duplicateHtmlDocument(id: string) {
@@ -229,37 +249,40 @@ export async function getSignerByToken(token: string) {
   return signer ? { document, signer } : undefined;
 }
 
-export async function signDocument(token: string, signerName: string, signature: string, audit?: { ipHash?: string; userAgent?: string }) {
-  if (!/^[A-Za-z0-9_-]{64}$/.test(token) || signerName.length > 160 || signature.length > 450000 ||
-      !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(signature)) return false;
+export async function signDocument(token: string, signerName: string, signature: string, expectedRevision: string, audit?: { ipHash?: string; userAgent?: string }) {
+  if (!/^[A-Za-z0-9_-]{64}$/.test(token) || !/^[a-f0-9]{64}$/.test(expectedRevision) || signerName.length > 160) return false;
   const db = getDatabase(), tokenSnapshot = await db.doc(`signatureTokens/${hash(token)}`).get();
+  const tokenData = tokenSnapshot.exists ? tokenSnapshot.data() as { documentId: string; signerId: string } : undefined;
+  const ref = db.doc(`signatureDocuments/${tokenData?.documentId ?? hash(token)}`);
+  const initial = await ref.get();
+  if (!initial.exists || documentRevision(initial.data() as StoredDocument) !== expectedRevision) return false;
+  const normalizedSignature = await normalizeSignatureImage(signature);
+  if (!normalizedSignature) return false;
   if (tokenSnapshot.exists) {
-    const { documentId, signerId } = tokenSnapshot.data() as { documentId: string; signerId: string };
-    const ref = db.doc(`signatureDocuments/${documentId}`);
+    const signerId = tokenData?.signerId;
     return db.runTransaction(async (transaction) => {
       const snapshot = await transaction.get(ref);
       if (!snapshot.exists) return false;
       const document = snapshot.data() as StoredDocument, signers = document.signers ?? [];
       const target = signers.find((signer) => signer.id === signerId);
-      if (!target || target.signedAt) return false;
+      if (!target || target.signedAt || documentRevision(document) !== expectedRevision) return false;
       const signedAt = new Date().toISOString();
       const updated = signers.map((signer) => signer.id === signerId ? {
-        ...signer, name: signerName, signature, signedAt, signerIpHash: audit?.ipHash,
+        ...signer, signature: normalizedSignature, signedAt, signedContentHash: expectedRevision, signerIpHash: audit?.ipHash,
         signerUserAgent: audit?.userAgent?.slice(0, 300),
       } : signer);
       transaction.update(ref, { signers: updated, ...(updated.every((signer) => signer.signedAt) ? { signedAt } : {}) });
       return true;
     });
   }
-  const ref = db.doc(`signatureDocuments/${hash(token)}`);
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return false;
     const document = snapshot.data() as StoredDocument;
-    if (document.signedAt) return false;
+    if (document.signedAt || documentRevision(document) !== expectedRevision) return false;
     transaction.update(ref, {
-      signerName, signature, signedAt: new Date().toISOString(),
-      signedContentHash: createHash("sha256").update(document.content ?? "").digest("hex"),
+      signerName, signature: normalizedSignature, signedAt: new Date().toISOString(),
+      signedContentHash: expectedRevision,
       signerIpHash: audit?.ipHash, signerUserAgent: audit?.userAgent?.slice(0, 300),
     });
     return true;

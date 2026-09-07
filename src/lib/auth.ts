@@ -19,6 +19,9 @@ type AuthState = {
   totpSecretCipher?: string | null;
   totpPendingSecretCipher?: string | null;
   totpPendingExpiresAt?: number | null;
+  totpPendingSessionVersion?: number | null;
+  totpManagementFailures?: number;
+  totpManagementExpiresAt?: number;
   recoveryCodeHashes?: string[];
 };
 
@@ -51,6 +54,7 @@ async function state(): Promise<AuthState> {
     totpSecretCipher: data?.totpSecretCipher,
     totpPendingSecretCipher: data?.totpPendingSecretCipher,
     totpPendingExpiresAt: data?.totpPendingExpiresAt,
+    totpPendingSessionVersion: data?.totpPendingSessionVersion,
     recoveryCodeHashes: Array.isArray(data?.recoveryCodeHashes) ? data.recoveryCodeHashes : [],
   };
 }
@@ -169,10 +173,16 @@ function createRecoveryCodes() {
 export async function beginTwoFactorEnrollment() {
   const secretKey = toBase32(randomBytes(20));
   const expiresAt = Date.now() + (10 * 60 * 1000);
-  await getDatabase().doc("system/auth").set({
-    totpPendingSecretCipher: encryptSecret(secretKey),
-    totpPendingExpiresAt: expiresAt,
-  }, { merge: true });
+  const db = getDatabase(), ref = db.doc("system/auth");
+  await db.runTransaction(async (transaction) => {
+    const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
+    if (auth?.totpEnabled) throw new Error("two-factor-already-enabled");
+    transaction.set(ref, {
+      totpPendingSecretCipher: encryptSecret(secretKey),
+      totpPendingExpiresAt: expiresAt,
+      totpPendingSessionVersion: Number(auth?.sessionVersion ?? 1),
+    }, { merge: true });
+  });
   const issuer = "Elia Computing";
   const account = "elia448811@gmail.com";
   const uri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secretKey}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD_SECONDS}`;
@@ -183,36 +193,51 @@ export async function beginTwoFactorEnrollment() {
 }
 
 export async function confirmTwoFactorEnrollment(code: string) {
-  const auth = await state();
-  if (!auth.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now()) return { ok: false as const, recoveryCodes: [] };
-  const secretKey = decryptSecret(auth.totpPendingSecretCipher);
-  if (!validTotp(secretKey, code)) return { ok: false as const, recoveryCodes: [] };
-  const recoveryCodes = createRecoveryCodes();
-  await getDatabase().doc("system/auth").set({
-    totpEnabled: true,
-    totpSecretCipher: encryptSecret(secretKey),
-    totpPendingSecretCipher: null,
-    totpPendingExpiresAt: null,
-    recoveryCodeHashes: recoveryCodes.map(recoveryCodeHash),
-    sessionVersion: auth.sessionVersion + 1,
-  }, { merge: true });
-  return { ok: true as const, recoveryCodes };
+  const db = getDatabase(), ref = db.doc("system/auth");
+  return db.runTransaction(async (transaction) => {
+    const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
+    if (auth?.totpEnabled || !auth?.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now() ||
+        auth.totpPendingSessionVersion !== Number(auth.sessionVersion ?? 1)) return { ok: false as const, recoveryCodes: [] };
+    const secretKey = decryptSecret(auth.totpPendingSecretCipher);
+    if (!validTotp(secretKey, code)) return { ok: false as const, recoveryCodes: [] };
+    const recoveryCodes = createRecoveryCodes();
+    transaction.set(ref, {
+      totpEnabled: true,
+      totpSecretCipher: encryptSecret(secretKey),
+      totpPendingSecretCipher: null,
+      totpPendingExpiresAt: null,
+      totpPendingSessionVersion: null,
+      recoveryCodeHashes: recoveryCodes.map(recoveryCodeHash),
+      sessionVersion: Number(auth.sessionVersion ?? 1) + 1,
+    }, { merge: true });
+    return { ok: true as const, recoveryCodes };
+  });
 }
 
 export async function cancelTwoFactorEnrollment() {
-  await getDatabase().doc("system/auth").set({ totpPendingSecretCipher: null, totpPendingExpiresAt: null }, { merge: true });
+  await getDatabase().doc("system/auth").set({ totpPendingSecretCipher: null, totpPendingExpiresAt: null, totpPendingSessionVersion: null }, { merge: true });
 }
 
 export async function disableTwoFactor(code: string) {
   const db = getDatabase(), ref = db.doc("system/auth");
   return db.runTransaction(async (transaction) => {
     const data = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
-    if (!data?.totpEnabled || !data.totpSecretCipher || !validTotp(decryptSecret(data.totpSecretCipher), code)) return false;
+    if (!data?.totpEnabled || !data.totpSecretCipher) return false;
+    const expiresAt = Number(data.totpManagementExpiresAt ?? 0);
+    const failures = expiresAt > Date.now() ? Number(data.totpManagementFailures ?? 0) : 0;
+    if (failures >= MAX_ATTEMPTS) return false;
+    if (!validTotp(decryptSecret(data.totpSecretCipher), code)) {
+      transaction.set(ref, { totpManagementFailures: failures + 1, totpManagementExpiresAt: expiresAt > Date.now() ? expiresAt : Date.now() + LOCK_MS }, { merge: true });
+      return false;
+    }
     transaction.set(ref, {
       totpEnabled: false,
       totpSecretCipher: null,
       totpPendingSecretCipher: null,
       totpPendingExpiresAt: null,
+      totpPendingSessionVersion: null,
+      totpManagementFailures: 0,
+      totpManagementExpiresAt: 0,
       recoveryCodeHashes: [],
       sessionVersion: Number(data.sessionVersion ?? 1) + 1,
     }, { merge: true });
