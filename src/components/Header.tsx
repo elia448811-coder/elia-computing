@@ -34,7 +34,7 @@ export function Header() {
     >
       <div className="container-site flex h-[76px] items-center justify-between gap-4">
         <Link
-          href="#home"
+          href="/#home"
           className="flex items-center gap-3 rounded-2xl"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
         >
@@ -52,13 +52,13 @@ export function Header() {
 
         <nav className="hidden items-center gap-1 xl:flex" aria-label="ניווט ראשי">
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="rounded-xl px-3 py-2 text-sm font-medium text-silver transition-colors hover:bg-white/6 hover:text-white"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -66,9 +66,9 @@ export function Header() {
           <Link href="/login" className="hidden rounded-full px-3 py-2 text-sm font-semibold text-silver hover:text-white md:inline-flex">
             מסמכים וחתימות
           </Link>
-          <a href="#contact" className="btn btn-primary hidden px-5 text-sm sm:inline-flex">
+          <Link href="/#contact" className="btn btn-primary hidden px-5 text-sm sm:inline-flex">
             דברו איתי
-          </a>
+          </Link>
 
           <button
             type="button"
@@ -108,22 +108,22 @@ export function Header() {
       >
         <nav className="container-site flex flex-col gap-1 py-4" aria-label="תפריט מובייל">
           {navLinks.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               className="rounded-xl px-3 py-3 text-base text-silver hover:bg-white/5 hover:text-white"
               onClick={() => setOpen(false)}
             >
               {link.label}
-            </a>
+            </Link>
           ))}
-          <a
-            href="#contact"
+          <Link
+            href="/#contact"
             className="btn btn-primary mt-2"
             onClick={() => setOpen(false)}
           >
             דברו איתי
-          </a>
+          </Link>
           <Link href="/login" className="rounded-xl px-3 py-3 text-base text-silver hover:bg-white/5 hover:text-white" onClick={() => setOpen(false)}>
             מסמכים וחתימות
           </Link>

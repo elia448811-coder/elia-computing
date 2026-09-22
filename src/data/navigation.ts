@@ -1,18 +1,20 @@
 export const navLinks = [
-  { href: "#home", label: "ראשי" },
-  { href: "#services", label: "שירותים" },
-  { href: "#packages", label: "חבילות" },
-  { href: "#process", label: "תהליך עבודה" },
-  { href: "#faq", label: "שאלות נפוצות" },
-  { href: "#contact", label: "צור קשר" },
+  { href: "/projects", label: "הפרויקטים שלנו" },
+  { href: "/#home", label: "ראשי" },
+  { href: "/#services", label: "שירותים" },
+  { href: "/#packages", label: "חבילות" },
+  { href: "/#process", label: "תהליך עבודה" },
+  { href: "/#faq", label: "שאלות נפוצות" },
+  { href: "/#contact", label: "צור קשר" },
 ] as const;
 
 export const footerQuickLinks = [
-  { href: "#services", label: "שירותים" },
-  { href: "#packages", label: "חבילות" },
-  { href: "#process", label: "תהליך עבודה" },
-  { href: "#faq", label: "שאלות נפוצות" },
-  { href: "#contact", label: "צור קשר" },
+  { href: "/projects", label: "הפרויקטים שלנו" },
+  { href: "/#services", label: "שירותים" },
+  { href: "/#packages", label: "חבילות" },
+  { href: "/#process", label: "תהליך עבודה" },
+  { href: "/#faq", label: "שאלות נפוצות" },
+  { href: "/#contact", label: "צור קשר" },
   { href: "/login", label: "מסמכים וחתימות" },
 ] as const;
 
@@ -23,4 +25,3 @@ export const legalLinks = [
   { href: "/privacy", label: "מדיניות פרטיות" },
   { href: "/accessibility", label: "נגישות" },
 ] as const;
-

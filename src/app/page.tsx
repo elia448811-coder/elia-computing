@@ -1,3 +1,4 @@
+import { Projects } from "@/components/Projects";
 import { Contact } from "@/components/Contact";
 import { CTABanner } from "@/components/CTABanner";
 import { ElectronicBackground } from "@/components/ElectronicBackground";
@@ -15,6 +16,7 @@ export default function Home() {
       <Hero />
       <TrustBar />
       <Services />
+      <Projects />
       <Pricing />
       <Process />
       <FAQ />
