@@ -1134,6 +1134,14 @@ textarea {
 .home-projects .project-link { border-top-color:#dce8ec; color:#133d51; }
 .home-projects .project-link-arrow { border-color:#c7dfe7; color:#0b7497; }
 
+.process-section { background:linear-gradient(155deg,#edf6f7 0%,#f8fbfb 54%,#eaf3f7 100%); border-block:1px solid #d6e6eb; color:#142a39; }
+.process-section h2,.process-section h3 { color:#142a39; }
+.process-section .text-silver-muted { color:#536b7a; }
+.process-section .text-electric-bright { color:#0c7195; }
+.process-section .glass { background:#fff; border-color:#d7e6e9; box-shadow:0 16px 42px rgba(24,67,79,.08); }
+.process-section .glass:hover { border-color:#7cb7ca; box-shadow:0 20px 46px rgba(24,67,79,.14); }
+.process-section ol > div > li > div:first-child { background:#e7f5f9; border-color:#afd6e1; }
+
 @media (max-width:1023px) { .project-grid-compact .project-art { height:225px; } }
 @media (max-width:600px) {
   .hero-capabilities { display:none; }

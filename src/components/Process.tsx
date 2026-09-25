@@ -4,7 +4,7 @@ import { processSteps } from "@/data/content";
 
 export function Process() {
   return (
-    <section id="process" className="section-y relative" aria-labelledby="process-title">
+    <section id="process" className="section-y process-section relative" aria-labelledby="process-title">
       <div className="container-site">
         <Reveal>
           <SectionHeading
