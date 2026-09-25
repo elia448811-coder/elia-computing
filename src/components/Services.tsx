@@ -16,7 +16,7 @@ function ServiceCard({ service }: { service: Service }) {
     : service.items.slice(0, PREVIEW_COUNT);
 
   return (
-    <article className="glass group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] p-7 transition duration-300 hover:-translate-y-1 hover:border-electric/35 hover:shadow-[var(--glow)]">
+    <article className="glass service-card group relative flex h-full flex-col overflow-hidden rounded-[var(--radius-lg)] p-7 transition duration-300 hover:-translate-y-1 hover:border-electric/35 hover:shadow-[var(--glow)]">
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-electric/40 to-transparent opacity-0 transition group-hover:opacity-100" />
       <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-electric/15 bg-electric/10 text-electric-bright transition group-hover:scale-105 group-hover:bg-electric/20">
         <ServiceIcon name={service.icon} />
@@ -52,7 +52,7 @@ function ServiceCard({ service }: { service: Service }) {
 
 export function Services() {
   return (
-    <section id="services" className="section-y relative" aria-labelledby="services-title">
+    <section id="services" className="section-y services-section relative" aria-labelledby="services-title">
       <div className="container-site">
         <Reveal>
           <SectionHeading
@@ -62,9 +62,13 @@ export function Services() {
           />
         </Reveal>
 
-        <div className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 xl:grid-cols-12">
           {services.map((service, index) => (
-            <Reveal key={service.id} delayMs={(index % 3) * 70}>
+            <Reveal
+              key={service.id}
+              className={`h-full ${index < 4 ? "xl:col-span-3" : "xl:col-span-4"} ${index === 6 ? "sm:col-span-2 xl:col-span-4" : ""}`}
+              delayMs={(index % 4) * 70}
+            >
               <ServiceCard service={service} />
             </Reveal>
           ))}

@@ -50,9 +50,9 @@ export function Hero() {
             </a>
           </div>
 
-          <ul className="mt-10 grid max-w-2xl gap-3 sm:grid-cols-3" aria-label="תחומי התמחות מרכזיים">
+          <ul className="mt-10 grid max-w-2xl grid-cols-2 gap-3 lg:grid-cols-3" aria-label="תחומי התמחות מרכזיים">
             {capabilities.map((item) => (
-              <li key={item.label} className="rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-sm">
+              <li key={item.label} className="hero-capability rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-sm last:col-span-2 lg:last:col-span-1">
                 <span className="block text-sm font-bold text-white">{item.label}</span>
                 <span className="mt-1 block text-xs text-silver-muted">{item.detail}</span>
               </li>
