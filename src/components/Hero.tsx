@@ -1,15 +1,11 @@
-import { Logo } from "@/components/Logo";
+import Image from "next/image";
+import Link from "next/link";
+import { projects } from "@/data/projects";
 
 const capabilities = [
   { label: "מחשוב ורשתות", detail: "תשתית יציבה" },
   { label: "ענן ואבטחה", detail: "עבודה בטוחה" },
   { label: "אתרים ומערכות", detail: "צמיחה דיגיטלית" },
-];
-
-const serviceStatus = [
-  { label: "מערכות ותשתיות", value: "מנוהל", tone: "bg-emerald-400" },
-  { label: "אבטחה וגיבויים", value: "מוגן", tone: "bg-sky-400" },
-  { label: "אתר ונוכחות דיגיטלית", value: "באוויר", tone: "bg-violet-400" },
 ];
 
 export function Hero() {
@@ -50,7 +46,7 @@ export function Hero() {
             </a>
           </div>
 
-          <ul className="mt-10 grid max-w-2xl grid-cols-2 gap-3 lg:grid-cols-3" aria-label="תחומי התמחות מרכזיים">
+          <ul className="hero-capabilities mt-10 grid max-w-2xl grid-cols-2 gap-3 lg:grid-cols-3" aria-label="תחומי התמחות מרכזיים">
             {capabilities.map((item) => (
               <li key={item.label} className="hero-capability rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 backdrop-blur-sm last:col-span-2 lg:last:col-span-1">
                 <span className="block text-sm font-bold text-white">{item.label}</span>
@@ -60,55 +56,22 @@ export function Hero() {
           </ul>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[500px]">
-          <div className="hero-dashboard relative overflow-hidden rounded-[1.75rem] border border-white/12 p-5 shadow-2xl sm:p-6">
-            <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-5">
-              <div className="flex items-center gap-3">
-                <Logo
-                  variant="for-dark"
-                  className="h-12 w-12 rounded-2xl border border-electric/20 object-cover"
-                  priority
-                  sizes="48px"
-                />
-                <div>
-                  <p className="font-bold text-white">מרכז הבקרה של העסק</p>
-                  <p className="text-xs text-silver-muted">אליה שירותי מחשוב</p>
-                </div>
-              </div>
-              <span className="status-pill">הכול תקין</span>
+        <div className="hero-showcase relative mx-auto w-full max-w-[520px]">
+          <div className="hero-showcase-glow" aria-hidden="true" />
+          <div className="hero-showcase-frame">
+            <div className="hero-showcase-topline">
+              <span>מתוך הפרויקטים שלנו</span>
+              <span className="hero-showcase-dots" aria-hidden="true"><i /><i /><i /></span>
             </div>
-
-            <div className="mt-6 grid gap-3">
-              {serviceStatus.map((item) => (
-                <div key={item.label} className="flex items-center justify-between rounded-2xl border border-white/8 bg-white/[0.035] px-4 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <span className={`h-2.5 w-2.5 rounded-full ${item.tone} shadow-[0_0_16px_currentColor]`} />
-                    <span className="text-sm font-medium text-silver">{item.label}</span>
-                  </div>
-                  <span className="text-sm font-bold text-white">{item.value}</span>
-                </div>
-              ))}
+            <div className="hero-showcase-image">
+              <Image src={projects[1].image} alt="צילום מסך של טבי, סביבת לימוד הנהיגה שפיתחנו" width={1440} height={900} sizes="(max-width: 1023px) 90vw, 520px" priority unoptimized />
             </div>
-
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <div className="rounded-2xl bg-electric px-5 py-4 text-ink">
-                <span className="block text-3xl font-black">6</span>
-                <span className="text-sm font-bold">חודשי ליווי</span>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-[#0c1829] px-5 py-4">
-                <span className="block text-3xl font-black text-white">360°</span>
-                <span className="text-sm text-silver-muted">מעטפת טכנולוגית</span>
-              </div>
-            </div>
-
-            <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-5">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(52,211,153,.75)]" />
-              <p className="text-sm text-silver">
-                <strong className="font-bold text-white">מענה אישי וישיר</strong>
-                <span className="text-silver-muted"> · בלי להעביר אתכם בין ספקים</span>
-              </p>
+            <div className="hero-showcase-footer">
+              <div><strong>טבי · בדרך לנהיגה בטוחה</strong><span>אפיון, עיצוב ופיתוח מערכת לימוד</span></div>
+              <Link href="/projects" aria-label="לצפייה בפרויקטים שלנו">↗</Link>
             </div>
           </div>
+          <div className="hero-showcase-note"><strong>04</strong><span>פרויקטים<br />שאפשר לראות</span></div>
         </div>
       </div>
     </section>
