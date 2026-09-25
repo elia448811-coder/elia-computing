@@ -17,12 +17,12 @@ export function Footer() {
           <div className="flex items-center gap-3">
             <Logo
               variant="for-dark"
-              className="h-16 w-16 object-cover"
+              className="h-16 w-16 object-contain"
               sizes="64px"
             />
             <div>
-              <p className="font-extrabold text-white">{siteConfig.name}</p>
-              <p className="text-sm text-silver-muted">{siteConfig.slogan}</p>
+              <p className="text-xl font-extrabold tracking-[-0.04em] text-white">אליה</p>
+              <p className="text-sm font-semibold text-electric-bright">שירותי מחשוב</p>
             </div>
           </div>
         </div>

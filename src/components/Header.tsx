@@ -40,13 +40,13 @@ export function Header() {
         >
           <Logo
             variant="for-dark"
-            className="h-12 w-12 object-cover shadow-[0_10px_30px_rgba(69,200,255,.14)]"
+            className="h-12 w-12 object-contain drop-shadow-[0_8px_18px_rgba(69,200,255,.2)]"
             priority
             sizes="48px"
           />
-          <span className="hidden leading-tight sm:block">
-            <span className="block text-sm font-extrabold text-white sm:text-base">{siteConfig.name}</span>
-            <span className="mt-0.5 block text-[11px] font-medium text-silver-muted">הטכנולוגיה של העסק, מסודרת.</span>
+          <span className="leading-tight">
+            <span className="block text-lg font-extrabold tracking-[-0.04em] text-white sm:text-xl">אליה</span>
+            <span className="mt-0.5 hidden text-[11px] font-bold tracking-[0.03em] text-electric-bright sm:block">שירותי מחשוב</span>
           </span>
         </Link>
 

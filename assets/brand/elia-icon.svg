@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">אליה שירותי מחשוב — סמל E</title>
+  <defs><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a9edff"/><stop offset=".55" stop-color="#49c4f1"/><stop offset="1" stop-color="#1c80dd"/></linearGradient></defs>
+  <rect x="1" y="1" width="62" height="62" rx="13" fill="#10283d" stroke="#33677e" stroke-width="1.5"/>
+  <path fill="url(#blue)" d="M21 9h38l-8 10H27l-4 9h26l-8 10H19l-4 8h40l-8 9H4l8-20 4-10 5-16Z"/>
+</svg>

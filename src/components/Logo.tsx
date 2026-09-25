@@ -9,13 +9,14 @@ type LogoProps = {
 };
 
 export function Logo({
+  variant = "compact",
   className = "",
   priority = false,
   sizes,
 }: LogoProps) {
   return (
     <Image
-      src={brandMarkUrl(256)}
+      src={brandMarkUrl(256, variant)}
       alt="אליה שירותי מחשוב"
       width={1024}
       height={1024}

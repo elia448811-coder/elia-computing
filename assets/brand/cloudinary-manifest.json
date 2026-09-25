@@ -1,11 +1,32 @@
 [
   {
-    "filename": "elia-mark.webp",
-    "sha256": "f8b4c48bbd997bab6444617b35e873c4c7947ee69aad523ade4c89e99c23a9e4",
-    "url": "https://res.cloudinary.com/ipb43mz0/image/upload/v1790311129/elia-computing/xjw8ioawqxhmuvwug3te.webp",
-    "publicId": "elia-computing/xjw8ioawqxhmuvwug3te",
+    "id": "elia-mark",
+    "filename": "elia-mark-v3.webp",
+    "sha256": "226b9c5a072ff0ca75419b740e4c248f1fb543c335a451a95ce2a9e79a8ae7a1",
+    "url": "https://res.cloudinary.com/ipb43mz0/image/upload/v1790311688/elia-computing/pegbflgiaggtcdj4f8lk.webp",
+    "publicId": "elia-computing/pegbflgiaggtcdj4f8lk",
     "width": 1024,
     "height": 1024,
-    "bytes": 27120
+    "bytes": 13472
+  },
+  {
+    "id": "elia-icon",
+    "filename": "elia-icon-v3.webp",
+    "sha256": "a703e995ae7eabc32bb950f6c1c084699f12fd7f5ad332698c6bd0d4dd726365",
+    "url": "https://res.cloudinary.com/ipb43mz0/image/upload/v1790311690/elia-computing/xrazttkygwdothvttube.webp",
+    "publicId": "elia-computing/xrazttkygwdothvttube",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 22878
+  },
+  {
+    "id": "elia-mark-light",
+    "filename": "elia-mark-light-v3.webp",
+    "sha256": "91cadd9ff5e9dd001d808b166156ae6c8b7138864a5ed704063681231c4b6c43",
+    "url": "https://res.cloudinary.com/ipb43mz0/image/upload/v1790311961/elia-computing/in8m5qszeobxrvndzwve.webp",
+    "publicId": "elia-computing/in8m5qszeobxrvndzwve",
+    "width": 1024,
+    "height": 1024,
+    "bytes": 11062
   }
 ]
