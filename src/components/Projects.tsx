@@ -16,7 +16,7 @@ export function ProjectCards({ compact = false }: { compact?: boolean }) {
                 <span dir="ltr">{new URL(project.href).hostname}</span>
               </div>
               <div className="project-browser-screen">
-                <Image src={project.image} alt={`צילום מסך של ${project.name}`} width={1440} height={900} sizes={compact ? "(max-width: 600px) 90vw, (max-width: 1023px) 45vw, 45vw" : "(max-width: 600px) 90vw, 45vw"} unoptimized />
+                <Image src={project.image} alt={`צילום מסך של ${project.name}`} width={1440} height={900} sizes={compact ? "(max-width: 600px) 90vw, (max-width: 1023px) 45vw, 45vw" : "(max-width: 600px) 90vw, 45vw"} loading={!compact && index === 0 ? "eager" : "lazy"} unoptimized />
               </div>
             </div>
           </div>

@@ -64,7 +64,7 @@ export function Hero() {
               <span className="hero-showcase-dots" aria-hidden="true"><i /><i /><i /></span>
             </div>
             <div className="hero-showcase-image">
-              <Image src={projects[1].image} alt="צילום מסך של טבי, סביבת לימוד הנהיגה שפיתחנו" width={1440} height={900} sizes="(max-width: 1023px) 90vw, 520px" priority unoptimized />
+              <Image src={projects[1].image} alt="צילום מסך של טבי, סביבת לימוד הנהיגה שפיתחנו" width={1440} height={900} sizes="(max-width: 1023px) 90vw, 520px" loading="eager" priority unoptimized />
             </div>
             <div className="hero-showcase-footer">
               <div><strong>טבי · בדרך לנהיגה בטוחה</strong><span>אפיון, עיצוב ופיתוח מערכת לימוד</span></div>
