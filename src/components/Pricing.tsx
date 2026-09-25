@@ -84,7 +84,7 @@ export function Pricing() {
               <article
                 className={`relative flex h-full flex-col rounded-[var(--radius-xl)] p-7 sm:p-8 ${
                   plan.featured
-                    ? "border border-electric/55 bg-gradient-to-b from-electric/18 via-white/[0.055] to-white/[0.025] shadow-[var(--glow)] lg:-translate-y-3"
+                    ? "border border-electric/55 bg-[#0b2033] bg-gradient-to-b from-electric/18 via-white/[0.055] to-white/[0.025] shadow-[var(--glow)] lg:-translate-y-3"
                     : "glass"
                 }`}
               >

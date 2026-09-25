@@ -46,7 +46,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
   scroll-padding-top: calc(var(--header-h) + 12px);
 }
 
@@ -214,7 +214,11 @@ textarea {
 .service-card {
   background:
     radial-gradient(circle at 100% 0%, rgba(69, 200, 255, 0.055), transparent 52%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.018));
+    linear-gradient(160deg, rgba(24, 40, 58, 0.96), rgba(9, 23, 39, 0.94));
+}
+
+.contact-form {
+  background: linear-gradient(155deg, rgba(25, 43, 62, 0.97), rgba(8, 21, 37, 0.97));
 }
 
 .brand-monogram {
@@ -460,6 +464,10 @@ textarea {
 
 .section-y {
   padding-block: var(--section-y);
+}
+
+.site-main section[id] {
+  scroll-margin-top: calc(var(--header-h) + 20px);
 }
 
 .glass {

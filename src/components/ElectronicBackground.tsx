@@ -18,6 +18,9 @@ const styles = `
   .el-vignette { background: linear-gradient(90deg,rgba(5,11,20,.74),transparent 24%,transparent 76%,rgba(5,11,20,.62)),linear-gradient(180deg,transparent,rgba(5,11,20,.2) 52%,rgba(5,11,20,.7)); }
   @keyframes el-flow { 0%{opacity:0;translate:0 0}8%{opacity:.9}72%{opacity:.9}100%{opacity:0;translate:-42vw 0} }
   @keyframes el-charge { 0%,70%,100%{opacity:.28;scale:.85}78%{opacity:1;scale:1.35} }
+  .el-traces { opacity: .28; }
+  .el-currents { opacity: .55; }
+  .el-nodes { opacity: .65; }
   @media (prefers-reduced-motion:reduce) { .el-current,.el-node{animation:none!important}.el-current{opacity:.35} }
 `;
 

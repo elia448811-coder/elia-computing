@@ -114,7 +114,7 @@ export function Contact() {
   }
 
   const fieldClass =
-    "w-full rounded-xl border border-white/12 bg-white/[0.03] px-4 py-3 text-white outline-none transition placeholder:text-silver-muted/70 focus:border-electric/60 focus:bg-white/[0.05]";
+    "w-full rounded-xl border border-white/20 bg-white/[0.045] px-4 py-3 text-white outline-none transition placeholder:text-silver-muted/70 focus:border-electric/70 focus:bg-white/[0.07]";
 
   return (
     <section id="contact" className="section-y relative" aria-labelledby="contact-title">
@@ -160,7 +160,7 @@ export function Contact() {
 
         <Reveal delayMs={100}>
           <form
-            className="glass relative rounded-[var(--radius-xl)] p-6 sm:p-8"
+            className="glass contact-form relative rounded-[var(--radius-xl)] p-6 sm:p-8"
             onSubmit={onSubmit}
             noValidate
           >
