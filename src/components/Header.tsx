@@ -40,7 +40,7 @@ export function Header() {
         >
           <Logo
             variant="for-dark"
-            className="h-12 w-12 rounded-2xl border border-electric/20 object-cover shadow-[0_10px_30px_rgba(69,200,255,.18)]"
+            className="h-12 w-12 object-cover shadow-[0_10px_30px_rgba(69,200,255,.14)]"
             priority
             sizes="48px"
           />

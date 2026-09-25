@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">אליה שירותי מחשוב</title>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#153752"/><stop offset="1" stop-color="#091725"/></linearGradient>
+    <linearGradient id="letter" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4fbff"/><stop offset=".55" stop-color="#8be0ff"/><stop offset="1" stop-color="#32b4e9"/></linearGradient>
+  </defs>
+  <rect x="12" y="12" width="488" height="488" rx="108" fill="url(#field)"/>
+  <rect x="16" y="16" width="480" height="480" rx="104" fill="none" stroke="#3d7f9e" stroke-opacity=".55" stroke-width="8"/>
+  <path d="M927.6011962890625 0 100.00079345703125 1203.599609375H479.19818115234375L1305.798583984375 0ZM150.00067138671875 0V391.00054931640625Q150.00067138671875 579.2001953125 214.20062255859375 684.2001342773438Q278.40057373046875 789.2000732421875 425.80029296875 841L544.3995971679688 671.401123046875Q477.9984130859375 623.2008666992188 477.9984130859375 539.5993041992188V0ZM1319.5984497070312 1203.599609375 926.3982543945312 436.6004638671875 706.5997314453125 705.99853515625 938.60107421875 1203.599609375Z" transform="matrix(0.24188304928943652 0 0 -0.24188304928943652 84.31150314725014 401.56517181959987)" fill="url(#letter)"/>
+</svg>

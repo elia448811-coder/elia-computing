@@ -3,6 +3,7 @@ import { Heebo } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
+import { brandMarkUrl } from "@/data/brand";
 import { siteConfig } from "@/data/site";
 import "./globals.css";
 
@@ -50,8 +51,8 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: "/logos/logo-mark-v2.png",
-    apple: "/logos/logo-mark-v2.png",
+    icon: brandMarkUrl(64, "png"),
+    apple: brandMarkUrl(180, "png"),
   },
 };
 
@@ -62,7 +63,7 @@ function JsonLd() {
     name: siteConfig.name,
     description: siteConfig.description,
     url: siteConfig.url,
-    image: `${siteConfig.url}/logos/logo-mark-v2.png`,
+    image: brandMarkUrl(1024),
     slogan: siteConfig.slogan,
     areaServed: "IL",
     availableLanguage: ["he"],

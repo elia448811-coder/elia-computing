@@ -17,7 +17,7 @@ export function Footer() {
           <div className="flex items-center gap-3">
             <Logo
               variant="for-dark"
-              className="h-16 w-16 rounded-2xl border border-electric/20 object-cover"
+              className="h-16 w-16 object-cover"
               sizes="64px"
             />
             <div>

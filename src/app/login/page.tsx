@@ -13,7 +13,7 @@ export default async function LoginPage() {
     <main id="main" className="flex min-h-screen items-center justify-center px-4 py-28">
       <div className="glass w-full max-w-md rounded-[var(--radius-xl)] p-7 sm:p-10">
         <Link href="/" className="mb-8 flex items-center justify-center gap-3">
-          <Logo variant="for-dark" className="h-16 w-16 rounded-full" sizes="64px" />
+          <Logo variant="for-dark" className="h-16 w-16" sizes="64px" />
           <span className="font-bold text-white">אליה שירותי מחשוב</span>
         </Link>
         <h1 className="text-center text-3xl font-bold text-white">חתימות מרובות</h1>
