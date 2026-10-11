@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Heebo } from "next/font/google";
+import { Frank_Ruhl_Libre, Heebo } from "next/font/google";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
@@ -12,6 +12,13 @@ const heebo = Heebo({
   subsets: ["hebrew", "latin"],
   display: "swap",
   weight: ["400", "500", "600", "700", "800"],
+});
+
+const displayFont = Frank_Ruhl_Libre({
+  variable: "--font-display",
+  subsets: ["hebrew", "latin"],
+  display: "swap",
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -94,7 +101,7 @@ function JsonLd() {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${displayFont.variable} h-full`}>
       <body className="min-h-full font-sans antialiased">
         <JsonLd />
         <a

@@ -16,7 +16,7 @@ export default function ProjectsPage() {
         <section className="projects-hero" aria-labelledby="projects-page-title">
           <Link href="/" className="projects-back">ראשי <span aria-hidden="true">/</span> הפרויקטים שלנו</Link>
           <div className="projects-hero-layout">
-            <div><p className="project-category">נבנה עם מחשבה. נועד לאנשים.</p><h1 id="projects-page-title">רעיונות שהפכו<br /><span className="hero-gradient">למציאות דיגיטלית.</span></h1><p className="projects-intro">הפרויקטים שלנו, במקום אחד. ממערכות שעושות סדר בעסק ועד חוויות שמחברות בין אנשים. מוזמנים להכיר ולהיכנס.</p></div>
+            <div><p className="project-category">נבנה עם מחשבה. נועד לאנשים.</p><h1 id="projects-page-title">רעיונות שהפכו<br /><span className="text-electric">למציאות דיגיטלית.</span></h1><p className="projects-intro">הפרויקטים שלנו, במקום אחד. ממערכות שעושות סדר בעסק ועד חוויות שמחברות בין אנשים. מוזמנים להכיר ולהיכנס.</p></div>
             <div className="projects-hero-note"><span dir="ltr">04<span className="text-electric"> /</span></span><p>פרויקטים שונים.<br />אותה תשומת לב לפרטים.</p></div>
           </div>
           <div className="projects-collection-label"><h2>הפרויקטים שלנו</h2><span>מערכות · אתרים · משחקים</span></div>

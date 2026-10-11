@@ -66,12 +66,13 @@ export function Pricing() {
       aria-labelledby="packages-title"
     >
       <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(56,189,248,0.09),transparent_48%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(225,180,176,0.04),transparent_48%)]"
         aria-hidden="true"
       />
       <div className="container-site relative">
         <Reveal>
           <SectionHeading
+            id="packages-title"
             eyebrow="חבילות לבניית אתרים"
             title="בוחרים את החבילה שמתאימה לשלב של העסק"
             description="ביסיק: עמוד נחיתה ממוקד • מדיום: אתר עסקי מלא • פרו פלוס: מערכת שמפעילה תהליכים ומתחברת לכלי העסק."
@@ -84,7 +85,7 @@ export function Pricing() {
               <article
                 className={`relative flex h-full flex-col rounded-[var(--radius-xl)] p-7 sm:p-8 ${
                   plan.featured
-                    ? "border border-electric/55 bg-[#0b2033] bg-gradient-to-b from-electric/18 via-white/[0.055] to-white/[0.025] shadow-[var(--glow)] lg:-translate-y-3"
+                    ? "border border-electric/55 bg-navy-soft shadow-[var(--shadow-soft)] lg:-translate-y-3"
                     : "glass"
                 }`}
               >

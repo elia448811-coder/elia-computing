@@ -26,9 +26,9 @@ export function Header() {
 
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-50 transition-[background,border-color,backdrop-filter] duration-300 ${
+      className={`site-header fixed inset-x-0 top-0 z-50 transition-[background,border-color,backdrop-filter] duration-300 ${
         scrolled || open
-          ? "border-b border-white/10 bg-[#050a14]/80 backdrop-blur-xl"
+          ? "site-header-solid border-b border-white/10 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -40,7 +40,7 @@ export function Header() {
         >
           <Logo
             variant="for-dark"
-            className="h-12 w-12 object-contain drop-shadow-[0_8px_18px_rgba(69,200,255,.2)]"
+            className="brand-mark h-12 w-12 object-contain"
             priority
             sizes="48px"
           />
@@ -102,7 +102,7 @@ export function Header() {
 
       <div
         id="mobile-menu"
-        className={`border-t border-white/10 bg-[#050a14]/95 backdrop-blur-xl xl:hidden ${
+        className={`mobile-navigation border-t border-white/10 backdrop-blur-xl xl:hidden ${
           open ? "block" : "hidden"
         }`}
       >

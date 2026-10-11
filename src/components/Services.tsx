@@ -56,8 +56,9 @@ export function Services() {
       <div className="container-site">
         <Reveal>
           <SectionHeading
+            id="services-title"
             eyebrow="שירותים"
-            title="כל מה שהטכנולוגיה שלכם צריכה"
+            title="מתחילים במה שאתם צריכים"
             description="ממחשבים ורשתות ועד אבטחה, ענן, פיתוח ובניית אתרים, לפי הצורך שלכם."
           />
         </Reveal>

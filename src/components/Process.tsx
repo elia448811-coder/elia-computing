@@ -8,6 +8,7 @@ export function Process() {
       <div className="container-site">
         <Reveal>
           <SectionHeading
+            id="process-title"
             eyebrow="תהליך עבודה"
             title="מאיפה מתחילים ועד ליווי שוטף"
             description="תהליך ברור, שקוף ומקצועי, בלי הפתעות."
@@ -22,7 +23,7 @@ export function Process() {
           {processSteps.map((step, index) => (
             <Reveal key={step.step} delayMs={index * 80}>
               <li className="relative glass h-full rounded-[var(--radius-lg)] p-6 text-center transition hover:-translate-y-1 hover:border-electric/30 lg:text-start">
-                <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-electric/35 bg-electric/10 text-sm font-black text-electric-bright shadow-[0_12px_30px_rgba(69,200,255,.1)] lg:mx-0">
+                <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-2xl border border-electric/35 bg-electric/10 text-sm font-black text-electric-bright  lg:mx-0">
                   {step.step}
                 </div>
                 <h3 className="text-lg font-extrabold text-white">{step.title}</h3>

@@ -13,6 +13,7 @@ export function FAQ() {
       <div className="container-site max-w-3xl">
         <Reveal>
           <SectionHeading
+            id="faq-title"
             eyebrow="שאלות נפוצות"
             title="תשובות קצרות לשאלות שחוזרות"
           />

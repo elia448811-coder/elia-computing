@@ -8,7 +8,7 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative border-t border-white/10 bg-[#040912]" aria-labelledby="footer-heading">
+    <footer className="site-footer relative border-t border-white/10" aria-labelledby="footer-heading">
       <h2 id="footer-heading" className="sr-only">
         תחתית האתר
       </h2>
@@ -17,7 +17,7 @@ export function Footer() {
           <div className="flex items-center gap-3">
             <Logo
               variant="for-dark"
-              className="h-16 w-16 object-contain"
+              className="brand-mark h-16 w-16 object-contain"
               sizes="64px"
             />
             <div>

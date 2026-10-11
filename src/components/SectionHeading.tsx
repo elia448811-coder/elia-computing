@@ -1,4 +1,5 @@
 type SectionHeadingProps = {
+  id?: string;
   eyebrow?: string;
   title: string;
   description?: string;
@@ -6,6 +7,7 @@ type SectionHeadingProps = {
 };
 
 export function SectionHeading({
+  id,
   eyebrow,
   title,
   description,
@@ -14,14 +16,13 @@ export function SectionHeading({
   const alignClass = align === "center" ? "text-center mx-auto" : "text-start";
 
   return (
-    <div className={`max-w-3xl ${alignClass}`}>
+    <div className={`section-heading max-w-3xl ${alignClass}`}>
       {eyebrow ? (
-        <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-electric/15 bg-electric/[0.06] px-3 py-1.5 text-xs font-extrabold tracking-[0.14em] text-electric-bright">
-          <span className="h-1.5 w-1.5 rounded-full bg-electric" aria-hidden="true" />
+        <p className="section-eyebrow">
           {eyebrow}
         </p>
       ) : null}
-      <h2 className="text-balance text-3xl font-extrabold leading-[1.12] tracking-[-0.025em] text-white sm:text-4xl lg:text-[2.75rem]">
+      <h2 id={id} className="section-title text-balance">
         {title}
       </h2>
       {description ? (

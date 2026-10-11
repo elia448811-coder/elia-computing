@@ -121,10 +121,11 @@ export function Contact() {
       <div className="container-site grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <Reveal>
           <SectionHeading
+            id="contact-title"
             align="start"
             eyebrow="צור קשר"
             title="בואו נדבר על מה שצריך לפתור"
-            description="השאירו פרטים והפנייה תגיע ישירות אלינו."
+            description="השאירו פרטים וספרו לי במה אפשר לעזור."
           />
 
           <div className="mt-8 space-y-3 text-sm text-silver-muted">
