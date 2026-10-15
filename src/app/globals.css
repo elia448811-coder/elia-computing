@@ -61,6 +61,24 @@ body {
   overflow-x: hidden;
 }
 
+.workspace-input {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--white);
+}
+.workspace-input:focus-visible, .workspace button:focus-visible, .workspace a:focus-visible {
+  outline: 2px solid var(--electric);
+  outline-offset: 3px;
+}
+.workspace-input::placeholder { color: var(--silver-muted); }
+.workspace button:disabled { cursor: not-allowed; opacity: .5; }
+
 ::selection {
   background: rgba(225, 180, 176, 0.35);
   color: white;

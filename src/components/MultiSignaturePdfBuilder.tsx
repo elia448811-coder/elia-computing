@@ -1,183 +1,162 @@
 "use client";
-
-import { useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPdfDocumentAction } from "@/app/dashboard/actions";
+import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
+import { SignerFields, blankSigner } from "@/components/SignerFields";
+import type { Customer } from "@/lib/customers";
 import type { SignatureField } from "@/lib/documents";
+import type { PdfDraftData, PdfDraftEnvelope } from "@/lib/pdf-draft-types";
+import { readLocalPdfDraft, writeLocalPdfDraft } from "@/lib/pdf-local-draft";
+import type { WorkspaceSigner } from "@/lib/workspace-types";
 
-const initialSigners = [
-  { id: "side-a", label: "צד ראשון", color: "#38bdf8" },
-  { id: "side-b", label: "צד שני", color: "#a78bfa" },
-] as Array<{ id: string; label: string; color: string }>;
-
-const signerColors = ["#38bdf8", "#a78bfa", "#34d399", "#f59e0b"];
-const signerLabels = ["צד ראשון", "צד שני", "צד שלישי", "צד רביעי"];
-
-export function MultiSignaturePdfBuilder() {
+const colors = ["#9f494e", "#6e59a5", "#37785d", "#96621e", "#326b88", "#8c4e7d"];
+export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] }) {
+  const [pending, setPending] = useState(false);
+  const paused = useRef(false);
+  const [signers, setSigners] = useState<WorkspaceSigner[]>([{ id: "first-signer", label: "הלקוח", name: "", identityNumber: "", email: "", phone: "" }]);
+  const [title, setTitle] = useState("");
+  const [file, setFile] = useState<File>();
+  const [pdf, setPdf] = useState<PDFDocumentProxy>();
+  const [page, setPage] = useState(1);
+  const [step, setStep] = useState(1);
+  const [activeSigner, setActiveSigner] = useState("first-signer");
+  const [fields, setFields] = useState<SignatureField[]>([]);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("טוען טיוטה…");
+  const [ready, setReady] = useState(false);
+  const [conflict, setConflict] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [fieldSize, setFieldSize] = useState([0.3, 0.1]);
+  const [revision, setRevision] = useState<string | null>(null);
+  const revisionRef = useRef<string | null>(null);
+  const uploadedFile = useRef<File | undefined>(undefined);
+  const queue = useRef<Promise<void>>(Promise.resolve());
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [signers, setSigners] = useState(initialSigners);
-  const [fileName, setFileName] = useState("");
-  const [pdf, setPdf] = useState<PDFDocumentProxy>();
-  const [page, setPage] = useState(1);
-  const [activeSigner, setActiveSigner] = useState<string>(initialSigners[0].id);
-  const [fields, setFields] = useState<SignatureField[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [fieldWidth, setFieldWidth] = useState(0.3);
-  const [fieldHeight, setFieldHeight] = useState(0.1);
+  const loadGeneration = useRef(0);
 
-  useEffect(() => {
-    if (!pdf || !canvasRef.current || !stageRef.current) return;
-    let cancelled = false;
-    const render = async () => {
-      const pdfPage = await pdf.getPage(page);
-      const base = pdfPage.getViewport({ scale: 1 });
-      const availableWidth = Math.min(820, stageRef.current?.clientWidth ?? 820);
-      const viewport = pdfPage.getViewport({ scale: availableWidth / base.width });
-      const canvas = canvasRef.current;
-      if (!canvas || cancelled) return;
-      const ratio = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-      canvas.width = Math.round(viewport.width * ratio);
-      canvas.height = Math.round(viewport.height * ratio);
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
-      const context = canvas.getContext("2d");
-      if (!context) return;
-      await pdfPage.render({ canvas, canvasContext: context, viewport, transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0] }).promise;
-    };
-    render().catch(() => setError("לא הצלחנו להציג את העמוד. נסו PDF אחר."));
-    const observer = new ResizeObserver(() => void render());
-    observer.observe(stageRef.current);
-    return () => { cancelled = true; observer.disconnect(); };
-  }, [page, pdf]);
-
-  async function loadPdf(file?: File) {
-    setError("");
-    setFields([]);
-    setPdf(undefined);
-    if (!file) { setFileName(""); return; }
-    if (file.type !== "application/pdf" || file.size > 4 * 1024 * 1024) {
-      setError("יש לבחור קובץ PDF בגודל של עד 4MB.");
-      return;
-    }
-    setLoading(true);
+  const loadPdf = useCallback(async (next: File, reset = true) => {
+    const generation = ++loadGeneration.current;
+    setLoading(true); setError("");
+    if (reset) { setFile(undefined); setPdf(undefined); setFields([]); }
+    if (next.size > 4 * 1024 * 1024 || !next.name.toLowerCase().endsWith(".pdf")) { if (fileInputRef.current) fileInputRef.current.value = ""; setError("יש לבחור PDF בגודל עד 4MB."); setLoading(false); return; }
     try {
       const pdfjs = await import("pdfjs-dist");
       pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-      const loaded = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
-      setPdf(loaded);
-      setFileName(file.name);
-      setPage(1);
-    } catch {
-      setError("הקובץ אינו PDF תקין או שהוא מוגן בסיסמה.");
-    } finally {
-      setLoading(false);
+      const loaded = await pdfjs.getDocument({ data: await next.arrayBuffer() }).promise;
+      if (generation !== loadGeneration.current) return;
+      setFile(next); setPdf(loaded); setPage(1);
+      if (reset) setFields([]);
+      if (fileInputRef.current) { const transfer = new DataTransfer(); transfer.items.add(next); fileInputRef.current.files = transfer.files; }
+    } catch { setError("הקובץ אינו PDF תקין או שהוא מוגן בסיסמה."); }
+    finally { if (generation === loadGeneration.current) setLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function restore() {
+      let local;
+      try { local = await readLocalPdfDraft(); } catch { /* Browser storage may be unavailable. */ }
+      let data = local?.data, nextFile = local?.file;
+      try {
+        const response = await fetch("/api/dashboard/pdf-draft", { cache: "no-store" });
+        if (!response.ok) throw new Error("load");
+        const cloud = await response.json() as PdfDraftEnvelope | null;
+        revisionRef.current = cloud?.revision ?? null;
+        setRevision(cloud?.revision ?? null);
+        if (cloud && !(local && local.revision === cloud.revision && local.data.updatedAt > cloud.data.updatedAt)) {
+          const fileResponse = await fetch(`/api/dashboard/pdf-draft?file=1&revision=${cloud.revision}`, { cache: "no-store" });
+          if (!fileResponse.ok) throw new Error("file");
+          data = cloud.data; nextFile = new File([await fileResponse.blob()], data.fileName, { type: "application/pdf" }); uploadedFile.current = nextFile;
+        } else if (!cloud && local?.revision) { data = undefined; nextFile = undefined; }
+      } catch { setStatus("הענן לא זמין. מנסה לשחזר מהמכשיר."); }
+      if (cancelled) return;
+      if (data && nextFile) { setTitle(data.title); setSigners(data.signers); setActiveSigner(data.signers[0].id); setFields(data.fields); setStep(data.step); await loadPdf(nextFile, false); }
+      else { const signer = blankSigner(); setSigners([signer]); setActiveSigner(signer.id); }
+      setReady(true); setStatus(data ? "הטיוטה שוחזרה" : "הטיוטה תישמר אוטומטית לאחר בחירת קובץ");
     }
-  }
+    void restore();
+    return () => { cancelled = true; };
+  }, [loadPdf]);
 
-  function addSigner() {
-    if (signers.length >= 4) return;
-    const usedLabels = new Set(signers.map((signer) => signer.label));
-    const index = signerLabels.findIndex((label) => !usedLabels.has(label));
-    setSigners((current) => [...current, { id: `side-${Date.now()}-${index}`, label: signerLabels[index], color: signerColors[index] }]);
-  }
+  useEffect(() => () => { void pdf?.loadingTask.destroy(); }, [pdf]);
 
-  function removeSigner(id: string) {
-    if (signers.length <= 2) return;
-    const remaining = signers.filter((signer) => signer.id !== id);
-    setSigners(remaining);
-    setFields((current) => current.filter((field) => field.signerId !== id));
-    if (activeSigner === id) setActiveSigner(remaining[0].id);
-  }
+  useEffect(() => {
+    if (!ready || !file || conflict || pending) return;
+    const data: PdfDraftData = { title, fileName: file.name, signers, fields, step, updatedAt: new Date().toISOString() };
+    void writeLocalPdfDraft({ data, file, revision: revisionRef.current }).catch(() => {});
+    const timer = setTimeout(() => {
+      queue.current = queue.current.then(async () => {
+        if (conflict || paused.current) return;
+        setStatus("שומר טיוטת PDF…");
+        const form = new FormData(); form.set("data", JSON.stringify(data)); form.set("revision", revisionRef.current ?? "");
+        if (uploadedFile.current !== file) form.set("file", file);
+        try {
+          const response = await fetch("/api/dashboard/pdf-draft", { method: "PUT", body: form });
+          if (response.status === 409) { setConflict(true); setStatus("קיימת טיוטה חדשה ממכשיר אחר. העותק במכשיר נשמר."); return; }
+          if (!response.ok) throw new Error("save");
+          const saved = await response.json() as PdfDraftEnvelope;
+          revisionRef.current = saved.revision; setRevision(saved.revision); uploadedFile.current = file;
+          await writeLocalPdfDraft({ data, file, revision: saved.revision }).catch(() => {});
+          setStatus("טיוטת ה־PDF נשמרה בענן ובמכשיר");
+        } catch { setStatus("השמירה בענן לא הצליחה. נשמר עותק במכשיר כשאפשר."); }
+      });
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [ready, file, title, signers, fields, step, conflict, pending]);
 
-  function placeField(event: React.PointerEvent<HTMLDivElement>) {
-    if (!pdf || !canvasRef.current) return;
-    const bounds = canvasRef.current.getBoundingClientRect();
-    const width = fieldWidth, height = fieldHeight;
-    const x = Math.min(1 - width, Math.max(0, (event.clientX - bounds.left) / bounds.width - width / 2));
-    const y = Math.min(1 - height, Math.max(0, (event.clientY - bounds.top) / bounds.height - height / 2));
-    setFields((current) => [
-      ...current.filter((field) => field.signerId !== activeSigner),
-      { id: `field-${activeSigner}`, signerId: activeSigner, page, x, y, width, height },
-    ]);
-  }
+  useEffect(() => {
+    if (!pdf || !canvasRef.current || !stageRef.current || step < 3) return;
+    let cancelled = false, generation = 0, task: RenderTask | undefined, frame = 0;
+    async function render() {
+      const current = ++generation;
+      task?.cancel();
+      const pdfPage = await pdf!.getPage(page);
+      if (cancelled || current !== generation) return;
+      const base = pdfPage.getViewport({ scale: 1 }), width = Math.max(240, Math.min(820, (stageRef.current?.clientWidth ?? 820) - 16));
+      const viewport = pdfPage.getViewport({ scale: width / base.width });
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ratio = Math.min(2, window.devicePixelRatio || 1);
+      canvas.width = Math.round(viewport.width * ratio); canvas.height = Math.round(viewport.height * ratio);
+      canvas.style.width = `${viewport.width}px`; canvas.style.height = `${viewport.height}px`;
+      const context = canvas.getContext("2d"); if (!context) return;
+      task = pdfPage.render({ canvas, canvasContext: context, viewport, transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0] });
+      await task.promise;
+    }
+    function schedule() { cancelAnimationFrame(frame); frame = requestAnimationFrame(() => { void render().catch((reason) => { if (reason?.name !== "RenderingCancelledException" && !cancelled) setError("לא ניתן להציג את העמוד."); }); }); }
+    const observer = new ResizeObserver(schedule); observer.observe(stageRef.current); schedule();
+    return () => { cancelled = true; cancelAnimationFrame(frame); task?.cancel(); observer.disconnect(); };
+  }, [pdf, page, step]);
 
   const complete = signers.every((signer) => fields.some((field) => field.signerId === signer.id));
-
-  function resizeActiveField(width: number, height: number) {
-    setFieldWidth(width); setFieldHeight(height);
-    setFields((current) => current.map((field) => field.signerId === activeSigner ? { ...field, width, height, x: Math.min(field.x, 1 - width), y: Math.min(field.y, 1 - height) } : field));
+  function go(next: number) {
+    if (next > 1 && (!pdf || !title.trim())) { setError("יש לבחור קובץ ולהזין שם למסמך."); return; }
+    if (next > 2 && signers.some((signer) => !signer.name.trim() || !/^\d{9}$/.test(signer.identityNumber) || signer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(signer.email))) { setError("יש להשלים את שם החותם, תעודת הזהות וכתובת אימייל תקינה אם הוזנה."); return; }
+    if (next === 4 && !complete) { setError("יש לסמן מקום חתימה לכל חותם."); return; }
+    setError(""); setStep(next);
   }
-
-  return (
-    <div className="space-y-5">
-      <ol className="grid grid-cols-3 gap-2 text-center text-xs font-bold"><li className="rounded-xl bg-electric/10 px-2 py-3 text-electric-bright">1. בחירת PDF</li><li className={`rounded-xl px-2 py-3 ${pdf ? "bg-electric/10 text-electric-bright" : "bg-white/5 text-silver-muted"}`}>2. הוספת חותמים</li><li className={`rounded-xl px-2 py-3 ${complete ? "bg-green-400/10 text-green-100" : "bg-white/5 text-silver-muted"}`}>3. סימון חתימות</li></ol>
-      <label className="block text-sm font-semibold text-silver">
-        שם המסמך
-        <input name="pdfTitle" required placeholder="למשל: הסכם בין דוד לשרה" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" />
-      </label>
-      <div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const file = event.dataTransfer.files[0]; if (file && fileInputRef.current) { const transfer = new DataTransfer(); transfer.items.add(file); fileInputRef.current.files = transfer.files; void loadPdf(file); } }} className="rounded-2xl border border-dashed border-electric/35 bg-electric/[0.05] p-6 text-center">
-        <input ref={fileInputRef} name="pdfFile" type="file" accept="application/pdf,.pdf" required onChange={(event) => void loadPdf(event.target.files?.[0])} className="sr-only" />
-        <p className="font-bold text-white">גררו לכאן PDF או בחרו קובץ</p>
-        <p className="mt-1 text-xs text-silver-muted">עד 4MB · הקובץ מוצג לפני יצירת קישורי החתימה</p>
-        <button type="button" onClick={() => fileInputRef.current?.click()} className="btn btn-secondary mt-4 min-h-10 px-5 py-2 text-sm">בחירת קובץ</button>
-        {fileName ? <p className="mt-3 text-sm font-bold text-green-200">נבחר: {fileName}</p> : null}
-      </div>
-      {error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">{error}</p> : null}
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-bold text-white">החותמים במסמך</p><p className="text-xs text-silver-muted">אפשר להוסיף עד ארבעה חותמים ולסמן לכל אחד מקום נפרד.</p></div><button type="button" onClick={addSigner} disabled={signers.length >= 4} className="rounded-full border border-electric/30 px-4 py-2 text-sm font-bold text-electric-bright disabled:opacity-40">+ הוספת חותם</button></div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {signers.map((signer, index) => (
-          <fieldset key={signer.id} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <legend className="px-2 text-sm font-bold" style={{ color: signer.color }}>{signer.label}</legend>
-            {signers.length > 2 ? <button type="button" onClick={() => removeSigner(signer.id)} className="float-left text-xs text-red-200 hover:text-red-100">הסרה</button> : null}
-            <input type="hidden" name={`signer${index + 1}Id`} value={signer.id} />
-            <input type="hidden" name={`signer${index + 1}Label`} value={signer.label} />
-            <label className="block text-xs font-semibold text-silver">שם מלא<input name={`signer${index + 1}Name`} required className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
-            <label className="mt-3 block text-xs font-semibold text-silver">תעודת זהות<input name={`signer${index + 1}IdentityNumber`} required inputMode="numeric" pattern="[0-9]{9}" maxLength={9} autoComplete="off" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
-            <label className="mt-3 block text-xs font-semibold text-silver">אימייל (אופציונלי)<input name={`signer${index + 1}Email`} type="email" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
-            <label className="mt-3 block text-xs font-semibold text-silver">טלפון (אופציונלי)<input name={`signer${index + 1}Phone`} type="tel" className="mt-1.5 w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-white" /></label>
-          </fieldset>
-        ))}
-      </div>
-      {pdf ? (
-        <div className="rounded-2xl border border-white/10 bg-[#07111f] p-3 sm:p-5">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
-              {signers.map((signer) => (
-                <button key={signer.id} type="button" onClick={() => setActiveSigner(signer.id)} className={`rounded-full border px-4 py-2 text-sm font-bold ${activeSigner === signer.id ? "border-sky-300 bg-sky-300/15 text-white" : "border-white/15 text-silver"}`}>
-                  מיקום חתימת {signer.label}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-silver">
-              <button type="button" disabled={page === 1} onClick={() => setPage((value) => value - 1)} className="rounded-lg border border-white/15 px-3 py-1.5 disabled:opacity-30">הקודם</button>
-              <span>עמוד {page} מתוך {pdf.numPages}</span>
-              <button type="button" disabled={page === pdf.numPages} onClick={() => setPage((value) => value + 1)} className="rounded-lg border border-white/15 px-3 py-1.5 disabled:opacity-30">הבא</button>
-            </div>
-          </div>
-          <p className="mb-3 text-sm text-silver-muted">בחרו צד ולחצו על המקום במסמך שבו תופיע החתימה שלו.</p>
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-3"><span className="text-xs font-bold text-silver">גודל אזור החתימה:</span><button type="button" onClick={() => resizeActiveField(0.24, 0.08)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-silver">קטן</button><button type="button" onClick={() => resizeActiveField(0.3, 0.1)} className="rounded-full border border-electric/25 px-3 py-1.5 text-xs text-sky-100">רגיל</button><button type="button" onClick={() => resizeActiveField(0.42, 0.14)} className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-silver">גדול</button><span className="text-xs text-silver-muted">אפשר לבחור גודל מחדש גם אחרי הסימון.</span></div>
-          <div ref={stageRef} className="w-full overflow-auto rounded-xl bg-slate-700/40 p-2">
-            <div onPointerDown={placeField} className="relative mx-auto w-fit cursor-crosshair touch-manipulation">
-              <canvas ref={canvasRef} className="block max-w-full bg-white shadow-2xl" />
-              {fields.filter((field) => field.page === page).map((field) => {
-                const signer = signers.find((item) => item.id === field.signerId)!;
-                return <div key={field.id} className="pointer-events-none absolute flex items-center justify-center rounded border-2 border-dashed bg-sky-400/15 text-xs font-extrabold text-slate-950" style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%`, borderColor: signer.color }}>{signer.label}</div>;
-              })}
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs">
-            {signers.map((signer) => <span key={signer.id} className={`rounded-full px-3 py-1.5 ${fields.some((field) => field.signerId === signer.id) ? "bg-green-400/10 text-green-200" : "bg-amber-400/10 text-amber-200"}`}>{signer.label}: {fields.some((field) => field.signerId === signer.id) ? "המיקום סומן" : "טרם סומן"}</span>)}
-          </div>
-        </div>
-      ) : loading ? <p className="text-center text-sm text-silver-muted">טוען את המסמך…</p> : null}
-      <input type="hidden" name="signatureFields" value={JSON.stringify(fields)} />
-      <input type="hidden" name="signerCount" value={signers.length} />
-      <button className="btn btn-primary w-full" type="submit" disabled={!pdf || !complete}>
-        יצירת {signers.length} קישורים אישיים לחתימה
-      </button>
-      {pdf && !complete ? <p className="text-center text-xs text-amber-200">יש לסמן במסמך מקום חתימה לכל אחד מהחותמים.</p> : null}
+  function placeField(event: React.PointerEvent<HTMLDivElement>) {
+    if (!canvasRef.current || step !== 3) return;
+    const bounds = canvasRef.current.getBoundingClientRect(), [width, height] = fieldSize;
+    const x = Math.min(1 - width, Math.max(0, (event.clientX - bounds.left) / bounds.width - width / 2)), y = Math.min(1 - height, Math.max(0, (event.clientY - bounds.top) / bounds.height - height / 2));
+    setFields((current) => [...current.filter((field) => field.signerId !== activeSigner), { id: `field-${activeSigner}`, signerId: activeSigner, page, x, y, width, height }]);
+  }
+  if (!ready) return <p className="p-6 text-silver">טוען טיוטת PDF…</p>;
+  return <form onSubmit={(event) => { if (step !== 4) event.preventDefault(); }} action={async (formData) => { if (!file) { setError("יש לבחור קובץ PDF."); return; } paused.current = true; setPending(true); await queue.current; formData.set("pdfFile", file); formData.set("pdfDraftRevision", revisionRef.current ?? ""); try { await createPdfDocumentAction(formData); } finally { paused.current = false; setPending(false); } }} className="space-y-5">
+    <p className="text-sm text-silver" role="status">{status}</p>{conflict ? <button type="button" className="btn btn-secondary" onClick={() => location.reload()}>טעינת הטיוטה מהענן</button> : null}
+    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">{["בחירת PDF", "לקוחות וחותמים", "מיקום חתימות", "בדיקה ושמירה"].map((label, index) => <li key={label}><button type="button" aria-current={step === index + 1 ? "step" : undefined} className={`w-full rounded-xl border p-3 text-right text-sm ${step === index + 1 ? "border-electric bg-electric/15 text-white" : "border-white/10 text-silver"}`} onClick={() => go(index + 1)}>{index + 1}. {label}</button></li>)}</ol>
+    {error ? <p role="alert" className="rounded-xl bg-red-300/10 p-3 text-sm text-red-100">{error}</p> : null}
+    <div hidden={step !== 1}><label className="text-sm text-silver">שם המסמך<input className="workspace-input" name="pdfTitle" required value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)} /></label><div className="mt-5 rounded-xl border border-dashed border-electric/40 p-6 text-center" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); const next = event.dataTransfer.files[0]; if (next) void loadPdf(next); }}><input className="sr-only" ref={fileInputRef} name="pdfFile" type="file" accept="application/pdf,.pdf" onChange={(event) => { const next = event.target.files?.[0]; if (next) void loadPdf(next); }} /><p className="text-silver">גררו PDF לכאן · עד 4MB</p><button className="btn btn-secondary mt-4" type="button" disabled={loading} onClick={() => fileInputRef.current?.click()}>{loading ? "טוען…" : "בחירת קובץ"}</button>{file ? <p className="mt-3 text-sm text-electric-bright">{file.name} · {pdf?.numPages} עמודים</p> : null}</div></div>
+    <div hidden={step !== 2}><SignerFields signers={signers} customers={customers} onChange={(next) => { setSigners(next); setFields((current) => current.filter((field) => next.some((signer) => signer.id === field.signerId))); if (!next.some((signer) => signer.id === activeSigner)) setActiveSigner(next[0].id); }} /></div>
+    {signers.map((signer, index) => <div key={signer.id}>{Object.entries({ Id: signer.id, Label: signer.label, Name: signer.name, IdentityNumber: signer.identityNumber, Email: signer.email, Phone: signer.phone }).map(([key, value]) => <input type="hidden" key={key} name={`signer${index + 1}${key}`} value={value} />)}</div>)}
+    <div hidden={step < 3}>
+      {step === 4 ? <div className="mb-4 text-silver"><h3 className="text-xl font-bold text-white">{title}</h3><p className="mt-2 text-sm">{signers.map((signer) => signer.name).join(" · ")}</p><p className="mt-2 text-sm">בדקו שהחתימות ממוקמות נכון. שליחה במייל מתבצעת מהספרייה אחרי השמירה.</p></div> : <div className="mb-4 space-y-3"><p className="text-sm text-silver">בחרו חותם ולחצו על המקום במסמך שבו תופיע חתימתו.</p><div className="flex flex-wrap gap-2">{signers.map((signer, index) => <button className={`rounded-full border px-4 py-2 text-sm ${activeSigner === signer.id ? "border-electric bg-electric/15 text-white" : "border-white/15 text-silver"}`} type="button" key={signer.id} onClick={() => setActiveSigner(signer.id)}>{index + 1}. {signer.name || signer.label}{fields.some((field) => field.signerId === signer.id) ? " ✓" : ""}</button>)}</div><div className="flex flex-wrap gap-2">{([["קטן", 0.24, 0.08], ["רגיל", 0.3, 0.1], ["גדול", 0.42, 0.14]] as const).map(([label, width, height]) => <button type="button" key={label} className="rounded-lg border border-white/15 px-3 py-2 text-xs text-silver" onClick={() => { setFieldSize([width, height]); setFields((current) => current.map((field) => field.signerId === activeSigner ? { ...field, width, height, x: Math.min(field.x, 1 - width), y: Math.min(field.y, 1 - height) } : field)); }}>{label}</button>)}</div></div>}
+      <div className="mb-3 flex items-center justify-between gap-2 text-sm text-silver"><button type="button" className="btn btn-secondary min-h-10" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>העמוד הקודם</button><span>עמוד {page} מתוך {pdf?.numPages ?? 0}</span><button type="button" className="btn btn-secondary min-h-10" disabled={!pdf || page >= pdf.numPages} onClick={() => setPage((current) => current + 1)}>העמוד הבא</button></div>
+      <div ref={stageRef} className="overflow-auto rounded-xl bg-black/15 p-2"><div onPointerDown={placeField} className={`relative mx-auto w-fit ${step === 3 ? "cursor-crosshair" : ""}`}><canvas ref={canvasRef} className="block max-w-full bg-white" />{fields.filter((field) => field.page === page).map((field) => { const index = signers.findIndex((signer) => signer.id === field.signerId); return <div key={field.id} className="pointer-events-none absolute flex items-center justify-center overflow-hidden rounded border-2 border-dashed bg-white/80 px-1 text-center text-xs font-bold text-ink" style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%`, borderColor: colors[index] }}>{signers[index]?.name || signers[index]?.label}</div>; })}</div></div>
     </div>
-  );
+    <input type="hidden" name="signatureFields" value={JSON.stringify(fields)} /><input type="hidden" name="signerCount" value={signers.length} /><input type="hidden" name="pdfDraftRevision" value={revision ?? ""} />
+    <div className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-4"><button className="btn btn-secondary" type="button" disabled={step === 1 || pending} onClick={() => go(step - 1)}>חזרה</button>{step < 4 ? <button key="next" className="btn btn-primary" type="button" disabled={loading} onClick={() => go(step + 1)}>המשך</button> : <button key="save" className="btn btn-primary" type="submit" disabled={!pdf || !complete || conflict || pending}>{pending ? "שומר…" : "שמירה ויצירת קישורי חתימה"}</button>}</div>
+  </form>;
 }

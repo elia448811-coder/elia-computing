@@ -10,6 +10,8 @@ export type Customer = {
   phone: string;
   createdAt: string;
   updatedAt: string;
+  notes?: string;
+  previousIdentityNumbers?: string[];
 };
 
 export type CustomerInput = Pick<Customer, "fullName" | "identityNumber" | "email" | "phone">;
@@ -49,4 +51,25 @@ export async function saveCustomers(inputs: CustomerInput[]) {
       updatedAt: now,
     } satisfies Customer, { merge: true });
   }));
+}
+
+export async function updateCustomer(id: string, input: CustomerInput & { notes: string }) {
+  if (!id || id.length > 100) throw new Error("invalid-customer");
+  const customer = clean(input);
+  if (!customer.fullName || !/^\d{9}$/.test(customer.identityNumber) || customer.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customer.email)) throw new Error("invalid-customer");
+  const db = getDatabase();
+  const found = await db.collection("customers").where("id", "==", id).limit(1).get();
+  if (!found.docs[0]) throw new Error("customer-not-found");
+  const source = found.docs[0].ref;
+  const destination = db.doc(`customers/${customerKey(customer)}`);
+  return db.runTransaction(async (tx) => {
+    const [snapshot, target] = await Promise.all([tx.get(source), tx.get(destination)]);
+    const current = snapshot.data() as Customer | undefined;
+    if (!current) throw new Error("customer-not-found");
+    if (target.exists && target.data()?.id !== id) throw new Error("identity-exists");
+    const updated: Customer = { ...current, ...customer, notes: input.notes.trim().slice(0, 5000), updatedAt: new Date().toISOString(), previousIdentityNumbers: [...new Set([...(current.previousIdentityNumbers ?? []), current.identityNumber])].filter((identity) => identity !== customer.identityNumber) };
+    tx.set(destination, updated);
+    if (source.path !== destination.path) tx.delete(source);
+    return updated;
+  });
 }

@@ -19,7 +19,7 @@ export default async function EditDocumentPage({ params, searchParams }: Props) 
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const document = await getDocumentById(id);
   if (!document) notFound();
-  if (document.sourceType === "pdf" || document.signedAt) redirect("/dashboard#documents");
+  if (document.sourceType === "pdf" || document.signedAt || document.signers?.some((signer) => signer.signedAt)) redirect("/dashboard#documents");
   const template = document.template && document.template in documentTemplates ? document.template as DocumentTemplateKey : "blank";
   const action = updateDocumentAction.bind(null, id);
 
@@ -28,13 +28,13 @@ export default async function EditDocumentPage({ params, searchParams }: Props) 
       <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div><Link href="/dashboard#documents" className="text-sm font-bold text-electric-bright">← חזרה לספריית המסמכים</Link><h1 className="mt-2 text-3xl font-bold text-white">עריכת מסמך</h1><p className="mt-2 text-sm text-silver-muted">אפשר לשנות את פרטי הלקוח ואת כל תוכן המסמך כל עוד טרם נחתם.</p></div>
-          <Link href={`/sign/${document.token}`} className="btn btn-secondary text-sm">תצוגת החותם</Link>
+          <Link prefetch={false} href={`/sign/${document.signers?.[0]?.token || document.token}`} className="btn btn-secondary text-sm">תצוגת החותם</Link>
         </div>
         {query.saved ? <p className="mb-5 rounded-2xl border border-green-400/25 bg-green-400/10 p-4 text-green-100">השינויים נשמרו בהצלחה והקישור הקיים עודכן.</p> : null}
         {query.error ? <p className="mb-5 rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-red-100">לא ניתן לשמור. ודאו שכל השדות מלאים ושהמסמך טרם נחתם.</p> : null}
         <form action={action} className="glass space-y-5 rounded-[var(--radius-xl)] p-5 sm:p-8">
           <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold text-silver">שם הלקוח / החותם<input name="recipientName" required defaultValue={document.recipientName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label><label className="block text-sm font-semibold text-silver">אימייל<input name="recipientEmail" type="email" defaultValue={document.recipientEmail} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label></div>
-          <RichDocumentEditor initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} initialOrientation={document.pageOrientation ?? "portrait"} initialPageHeader={document.pageHeader ?? ""} initialPageFooter={document.pageFooter ?? ""} initialShowPageNumbers={document.showPageNumbers !== false} initialFontFamily={document.fontFamily ?? "Heebo"} initialLineHeight={document.lineHeight ?? "1.75"} draftKey={`document-${document.id}`} />
+          <RichDocumentEditor savedSuccessfully={Boolean(query.saved)} initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} initialOrientation={document.pageOrientation ?? "portrait"} initialPageHeader={document.pageHeader ?? ""} initialPageFooter={document.pageFooter ?? ""} initialShowPageNumbers={document.showPageNumbers !== false} initialFontFamily={document.fontFamily ?? "Heebo"} initialLineHeight={document.lineHeight ?? "1.75"} draftKey={`document-${document.id}`} />
           <div className="sticky bottom-3 flex flex-wrap gap-3 rounded-2xl border border-white/10 bg-[#07111f]/95 p-3 shadow-2xl backdrop-blur-xl"><button type="submit" className="btn btn-primary flex-1">שמירת כל השינויים</button><Link href="/dashboard#documents" className="btn btn-secondary">ביטול</Link></div>
         </form>
       </div>

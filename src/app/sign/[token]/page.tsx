@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
+import { DocumentViewTracker } from "@/components/DocumentViewTracker";
 import { documentRevision, getSignerByToken, renderHtmlForSigner } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
@@ -29,8 +30,9 @@ export default async function SignPage({ params, searchParams }: {
 
   return (
     <main id="main" className="min-h-screen px-4 pb-20 pt-28">
+      <DocumentViewTracker token={token} />
       <div className="mx-auto max-w-4xl">
-        <div className="mb-6 flex items-center justify-center gap-3"><Logo variant="for-dark" className="h-14 w-14" sizes="56px" /><span className="font-bold text-white">אליה שירותי מחשוב · חתימות מרובות</span></div>
+        <div className="mb-6 flex items-center justify-center gap-3"><Logo variant="for-dark" className="h-14 w-14" sizes="56px" /><span className="font-bold text-white">אליה שירותי מחשוב · מסמכים וחתימות</span></div>
         <article className="glass rounded-[var(--radius-xl)] p-5 sm:p-9">
           <ol className="mb-7 grid grid-cols-3 gap-2 text-center text-xs font-bold"><li className="rounded-xl bg-electric/10 px-2 py-3 text-electric-bright">1. בדיקת המסמך</li><li className={`rounded-xl px-2 py-3 ${signedAt ? "bg-green-400/10 text-green-100" : "bg-electric/10 text-electric-bright"}`}>2. חתימה</li><li className={`rounded-xl px-2 py-3 ${signedAt ? "bg-green-400/10 text-green-100" : "bg-white/5 text-silver-muted"}`}>3. אישור וקבלה</li></ol>
           <div className="border-b border-white/10 pb-6">

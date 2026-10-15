@@ -9,6 +9,7 @@ export type SignatureField = { id: string; signerId: string; page: number; x: nu
 export type DocumentSigner = {
   id: string; label: string; name: string; identityNumber: string; email: string; phone?: string; token: string;
   signedAt?: string; signature?: string; signerIpHash?: string; signerUserAgent?: string; signedContentHash?: string;
+  firstViewedAt?: string; lastViewedAt?: string; lastSentAt?: string; sendCount?: number;
 };
 export type SignatureDocument = {
   id: string; token?: string; title: string; recipientName?: string; recipientEmail?: string;
@@ -19,6 +20,7 @@ export type SignatureDocument = {
   signers?: DocumentSigner[]; createdAt: string; signedAt?: string; signerName?: string;
   signature?: string; signedContentHash?: string; signerIpHash?: string; signerUserAgent?: string;
   updatedAt?: string; archivedAt?: string | null;
+  firstViewedAt?: string; lastViewedAt?: string; lastSentAt?: string; sendCount?: number;
 };
 type StoredSigner = Omit<DocumentSigner, "token"> & { tokenCipher: string };
 type StoredDocument = Omit<SignatureDocument, "token" | "signers"> & { tokenCipher?: string; signers?: StoredSigner[] };
@@ -40,7 +42,7 @@ export function documentRevision(document: SignatureDocument | StoredDocument) {
   return createHash("sha256").update(JSON.stringify(content)).digest("hex");
 }
 
-function cleanHtml(content: string) {
+export function cleanHtml(content: string) {
   return sanitizeHtml(content, {
     allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
     allowedAttributes: {
@@ -196,7 +198,7 @@ export async function createPdfDocument(input: {
   if (!input.title || input.title.length > 160) throw new Error("invalid-title");
   if (input.pdfBytes.byteLength < 5 || input.pdfBytes.byteLength > MAX_PDF_BYTES) throw new Error("invalid-pdf-size");
   if (Buffer.from(input.pdfBytes.subarray(0, 5)).toString("ascii") !== "%PDF-") throw new Error("invalid-pdf");
-  if (input.signers.length < 2 || input.signers.length > 6) throw new Error("invalid-signers");
+  if (input.signers.length < 1 || input.signers.length > 6 || new Set(input.signers.map((signer) => signer.id)).size !== input.signers.length) throw new Error("invalid-signers");
   const parsedPdf = await PDFDocument.load(input.pdfBytes, { ignoreEncryption: false });
   const pageCount = parsedPdf.getPageCount(), signerIds = new Set(input.signers.map((signer) => signer.id));
   const fields = cleanFields(input.fields, signerIds, pageCount);

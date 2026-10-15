@@ -5,7 +5,7 @@ import { GoogleLoginButton } from "@/components/GoogleLoginButton";
 import { Logo } from "@/components/Logo";
 import { isAuthenticated } from "@/lib/auth";
 
-export const metadata: Metadata = { title: "כניסה לחתימות מרובות", robots: { index: false } };
+export const metadata: Metadata = { title: "כניסה למסמכים וחתימות", robots: { index: false } };
 
 export default async function LoginPage() {
   if (await isAuthenticated()) redirect("/dashboard");
@@ -16,8 +16,8 @@ export default async function LoginPage() {
           <Logo variant="for-dark" className="h-16 w-16" sizes="64px" />
           <span className="font-bold text-white">אליה שירותי מחשוב</span>
         </Link>
-        <h1 className="text-center text-3xl font-bold text-white">חתימות מרובות</h1>
-        <p className="mt-2 text-center text-silver-muted">ניהול מסמכים ועד ארבעה חותמים עם קישורים אישיים</p>
+        <h1 className="text-center text-3xl font-bold text-white">מסמכים וחתימות</h1>
+        <p className="mt-2 text-center text-silver-muted">ניהול מסמכים, לקוחות ועד שישה חותמים עם קישורים אישיים</p>
         <div className="mt-7"><GoogleLoginButton /></div>
       </div>
     </main>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
+import type { EditorDraft } from "@/lib/workspace-types";
 
 const quickFields = ["[שם הלקוח]", "[ת\"ז]", "[שם העסק]", "[שם הפרויקט]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
 const quickFieldLabels: Record<string, string> = {
@@ -29,6 +30,10 @@ type RichDocumentEditorProps = {
   initialLineHeight?: string;
   draftKey?: string;
   signers?: Array<{ id: string; label: string; name: string; identityNumber: string }>;
+  managedDraft?: boolean;
+  initialWarrantyAgreement?: string;
+  onDraftChange?: (draft: EditorDraft) => void;
+  savedSuccessfully?: boolean;
 };
 
 const fontFamilies = [
@@ -70,8 +75,11 @@ export function RichDocumentEditor({
   initialLineHeight = "1.75",
   draftKey = "new-document",
   signers = [],
+  managedDraft = false,
+  initialWarrantyAgreement = "",
+  onDraftChange,
+  savedSuccessfully = false,
 }: RichDocumentEditorProps) {
-  const initialDecoratedContent = decorateQuickFields(initialContent);
   const editorRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
@@ -82,7 +90,7 @@ export function RichDocumentEditor({
   const [template, setTemplate] = useState<DocumentTemplateKey>(initialTemplate);
   const [title, setTitle] = useState(initialTitle);
   const [content, setContent] = useState(() => decorateQuickFields(initialContent));
-  const [warrantyAgreement, setWarrantyAgreement] = useState("");
+  const [warrantyAgreement, setWarrantyAgreement] = useState(initialWarrantyAgreement);
   const [view, setView] = useState<"edit" | "preview">("edit");
   const [fullscreen, setFullscreen] = useState(false);
   const [draftStatus, setDraftStatus] = useState<DraftStatus>("restoring");
@@ -107,17 +115,22 @@ export function RichDocumentEditor({
     if (!paper) return;
     const nextPageHeight = Math.max(520, paper.clientWidth * (pageOrientation === "landscape" ? 210 / 297 : 297 / 210));
     setPageHeight(nextPageHeight);
-    setPageCount(Math.max(1, Math.ceil(paper.scrollHeight / nextPageHeight)));
+    setPageCount(Math.max(1, Math.ceil((paper.scrollHeight - 2) / nextPageHeight)));
   }, [pageOrientation]);
 
   const saveDraft = useCallback((nextContent = content) => {
+    if (managedDraft) return;
     if (!draftReadyRef.current) return;
     setDraftStatus("saving");
     const savedAt = new Date();
     window.localStorage.setItem(storageKey, JSON.stringify({ version: 2, title, content: nextContent, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight, savedAt: savedAt.toISOString() }));
     setLastSavedAt(savedAt);
     setDraftStatus("saved");
-  }, [content, fontFamily, lineHeight, pageFooter, pageHeader, pageOrientation, showPageNumbers, storageKey, template, title, warrantyAgreement]);
+  }, [content, fontFamily, lineHeight, managedDraft, pageFooter, pageHeader, pageOrientation, showPageNumbers, storageKey, template, title, warrantyAgreement]);
+
+  useEffect(() => {
+    onDraftChange?.({ title, content, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
+  }, [title, content, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight, onDraftChange]);
 
   const sync = useCallback(() => {
     const next = editorRef.current?.innerHTML ?? content;
@@ -241,8 +254,10 @@ export function RichDocumentEditor({
   }
 
   useEffect(() => {
+    if (managedDraft) return;
     const restoreTimer = window.setTimeout(() => {
       try {
+        if (savedSuccessfully) { window.localStorage.removeItem(storageKey); return; }
         const stored = window.localStorage.getItem(storageKey);
         if (stored) {
           const draft = JSON.parse(stored) as { title?: string; content?: string; template?: DocumentTemplateKey; warrantyAgreement?: string; pageOrientation?: PageOrientation; pageHeader?: string; pageFooter?: string; showPageNumbers?: boolean; fontFamily?: string; lineHeight?: string; savedAt?: string };
@@ -273,7 +288,7 @@ export function RichDocumentEditor({
     return () => {
       window.clearTimeout(restoreTimer);
     };
-  }, [initialFontFamily, initialLineHeight, initialOrientation, initialPageFooter, initialPageHeader, initialShowPageNumbers, storageKey]);
+  }, [initialFontFamily, initialLineHeight, initialOrientation, initialPageFooter, initialPageHeader, initialShowPageNumbers, managedDraft, savedSuccessfully, storageKey]);
 
   useEffect(() => {
     if (!draftReadyRef.current) return;
@@ -303,7 +318,7 @@ export function RichDocumentEditor({
         event.preventDefault();
         return;
       }
-      window.localStorage.removeItem(storageKey);
+      // Keep the recovery copy until the server confirms the save.
     };
     form.addEventListener("submit", validateBeforeSubmit);
     return () => form.removeEventListener("submit", validateBeforeSubmit);
@@ -365,7 +380,7 @@ export function RichDocumentEditor({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div><p className="text-sm font-bold text-electric-bright">הגדרות המסמך</p><p className="mt-1 text-xs text-silver-muted">בחרו תבנית ותנו למסמך שם ברור לפני שמתחילים לכתוב.</p></div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.07] px-3 py-2 text-xs font-semibold text-emerald-100" role="status" aria-live="polite">{statusText}</span><button type="button" onClick={() => { if (window.confirm("למחוק את הטיוטה השמורה בדפדפן?")) { window.localStorage.removeItem(storageKey); setLastSavedAt(null); } }} className="rounded-full border border-white/10 px-3 py-2 text-xs text-silver hover:text-white">מחיקת טיוטה</button>
+              {!managedDraft ? <span className="rounded-full border border-emerald-300/15 bg-emerald-300/[0.07] px-3 py-2 text-xs font-semibold text-emerald-100" role="status" aria-live="polite">{statusText}</span> : null}
               <div className="flex rounded-xl border border-white/10 bg-black/20 p-1" aria-label="מצב תצוגה">
                 <button type="button" onClick={() => setView("edit")} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${view === "edit" ? "bg-electric text-slate-950 shadow-lg" : "text-silver hover:text-white"}`}>עריכה</button>
                 <button type="button" onClick={() => { sync(); setView("preview"); }} className={`rounded-lg px-4 py-2 text-sm font-bold transition ${view === "preview" ? "bg-electric text-slate-950 shadow-lg" : "text-silver hover:text-white"}`}>תצוגה מקדימה</button>
@@ -373,24 +388,24 @@ export function RichDocumentEditor({
             </div>
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <label className="block text-sm font-semibold text-silver">שם המסמך<input name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="למשל: הסכם פיתוח עבור כהן בע״מ" className="mt-2 w-full rounded-xl border border-white/15 bg-[#091627] px-4 py-3 text-white placeholder:text-silver-muted focus:border-electric/50 focus:outline-none" /></label>
-            <label className="block text-sm font-semibold text-silver">תבנית מקצועית<select name="template" value={template} onChange={(event) => chooseTemplate(event.target.value as DocumentTemplateKey)} className="mt-2 w-full rounded-xl border border-white/15 bg-[#091627] px-4 py-3 text-white focus:border-electric/50 focus:outline-none">{Object.entries(documentTemplates).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
+            <label className="block text-sm font-semibold text-silver">שם המסמך<input name="title" required value={title} onChange={(event) => setTitle(event.target.value)} placeholder="למשל: הסכם פיתוח עבור כהן בע״מ" className="mt-2 w-full rounded-xl border border-white/15 bg-[var(--ink)] px-4 py-3 text-white placeholder:text-silver-muted focus:border-electric/50 focus:outline-none" /></label>
+            <label className="block text-sm font-semibold text-silver">תבנית מקצועית<select name="template" value={template} onChange={(event) => chooseTemplate(event.target.value as DocumentTemplateKey)} className="mt-2 w-full rounded-xl border border-white/15 bg-[var(--ink)] px-4 py-3 text-white focus:border-electric/50 focus:outline-none">{Object.entries(documentTemplates).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select></label>
           </div>
           <details className="mt-4 rounded-xl border border-white/10 bg-black/10 p-3">
             <summary className="cursor-pointer text-sm font-bold text-white">הגדרות עמוד, גופן ותצוגה</summary>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="text-xs font-semibold text-silver">כותרת עליונה<input value={pageHeader} onChange={(event) => setPageHeader(event.target.value)} placeholder="למשל: אליה שירותי מחשוב" className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white" /></label>
-              <label className="text-xs font-semibold text-silver">כותרת תחתונה<input value={pageFooter} onChange={(event) => setPageFooter(event.target.value)} placeholder="למשל: מסמך חסוי" className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white" /></label>
-              <label className="text-xs font-semibold text-silver">גופן<select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white">{fontFamilies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-              <label className="text-xs font-semibold text-silver">מרווח בין שורות<select value={lineHeight} onChange={(event) => setLineHeight(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white"><option value="1.35">צפוף</option><option value="1.5">רגיל</option><option value="1.75">מרווח</option><option value="2">כפול</option></select></label>
-              <label className="text-xs font-semibold text-silver">זום<select value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white">{[75, 90, 100, 110, 125].map((value) => <option key={value} value={value}>{value}%</option>)}</select></label>
+              <label className="text-xs font-semibold text-silver">כותרת עליונה<input value={pageHeader} onChange={(event) => setPageHeader(event.target.value)} placeholder="למשל: אליה שירותי מחשוב" className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white" /></label>
+              <label className="text-xs font-semibold text-silver">כותרת תחתונה<input value={pageFooter} onChange={(event) => setPageFooter(event.target.value)} placeholder="למשל: מסמך חסוי" className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white" /></label>
+              <label className="text-xs font-semibold text-silver">גופן<select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white">{fontFamilies.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+              <label className="text-xs font-semibold text-silver">מרווח בין שורות<select value={lineHeight} onChange={(event) => setLineHeight(event.target.value)} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white"><option value="1.35">צפוף</option><option value="1.5">רגיל</option><option value="1.75">מרווח</option><option value="2">כפול</option></select></label>
+              <label className="text-xs font-semibold text-silver">זום<select value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white">{[75, 90, 100, 110, 125].map((value) => <option key={value} value={value}>{value}%</option>)}</select></label>
               <label className="flex items-center gap-2 self-end rounded-xl border border-white/10 px-3 py-2.5 text-sm text-silver"><input type="checkbox" checked={showPageNumbers} onChange={(event) => setShowPageNumbers(event.target.checked)} className="accent-sky-400" />הצגת מספרי עמודים</label>
             </div>
           </details>
         </section>
 
         {template === "workAgreement" ? <div className="rounded-2xl border border-sky-300/20 bg-sky-300/[0.06] p-4 text-sm leading-relaxed text-sky-100">כל סעיפי החוזה פתוחים לעריכה. השלימו את השדות החכמים המסומנים לפני יצירת הקישור.</div> : null}
-        {template === "warrantyPolicy" ? <label className="block rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm font-semibold text-amber-50">במסגרת האחריות שלנו סוכם ש...<textarea value={warrantyAgreement} onChange={(event) => updateWarrantyAgreement(event.target.value)} rows={3} placeholder="למשל: האחריות כוללת שתי שעות הדרכה ועדכון אחד במשך 6 חודשים." className="mt-2 w-full rounded-xl border border-white/15 bg-[#0b1729] px-4 py-3 font-normal leading-relaxed text-white placeholder:text-silver-muted" /><span className="mt-2 block text-xs font-normal text-amber-100/70">הטקסט משתלב מיד בסעיף ההסכמות המיוחדות.</span></label> : null}
+        {template === "warrantyPolicy" ? <label className="block rounded-2xl border border-amber-300/25 bg-amber-300/[0.06] p-4 text-sm font-semibold text-amber-50">במסגרת האחריות שלנו סוכם ש...<textarea value={warrantyAgreement} onChange={(event) => updateWarrantyAgreement(event.target.value)} rows={3} placeholder="למשל: האחריות כוללת שתי שעות הדרכה ועדכון אחד במשך 6 חודשים." className="mt-2 w-full rounded-xl border border-white/15 bg-[var(--ink)] px-4 py-3 font-normal leading-relaxed text-white placeholder:text-silver-muted" /><span className="mt-2 block text-xs font-normal text-amber-100/70">הטקסט משתלב מיד בסעיף ההסכמות המיוחדות.</span></label> : null}
 
         <section className="rounded-2xl border border-violet-300/20 bg-violet-300/[0.06] p-4 sm:p-5">
           <p className="font-bold text-white">סימון מקומות החתימה</p>
@@ -408,17 +423,17 @@ export function RichDocumentEditor({
             <summary className="cursor-pointer font-bold text-white">מילוי אוטומטי של פרטי המסמך</summary>
             <p className="mt-2 text-xs leading-relaxed text-silver-muted">הקלידו פעם אחת והפרט יתעדכן בכל המקומות במסמך. אפשר גם ללחוץ ישירות על שדה כחול בתוך הדף ולערוך אותו ידנית.</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {quickFields.filter((field) => field !== "[חתימת הלקוח]").map((field) => <label key={field} className="text-xs font-semibold text-silver">{quickFieldLabels[field]}<input value={fieldValues[field] ?? ""} onChange={(event) => updateQuickField(field, event.target.value)} placeholder={field} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[#091627] px-3 py-2.5 text-sm text-white placeholder:text-silver-muted focus:border-electric/45 focus:outline-none" /></label>)}
+              {quickFields.filter((field) => field !== "[חתימת הלקוח]").map((field) => <label key={field} className="text-xs font-semibold text-silver">{quickFieldLabels[field]}<input value={fieldValues[field] ?? ""} onChange={(event) => updateQuickField(field, event.target.value)} placeholder={field} className="mt-1.5 w-full rounded-xl border border-white/12 bg-[var(--ink)] px-3 py-2.5 text-sm text-white placeholder:text-silver-muted focus:border-electric/45 focus:outline-none" /></label>)}
             </div>
           </details>
         ) : null}
 
         {view === "edit" ? (
-          <div className="overflow-visible rounded-[24px] border border-white/12 bg-[#020813] shadow-2xl">
+          <div className="overflow-visible rounded-[24px] border border-white/12 bg-[var(--ink)] shadow-2xl">
             <div className={`sticky ${fullscreen ? "top-0" : "top-[140px]"} z-30 rounded-t-[24px] border-b border-white/10 bg-[#081526]/95 shadow-lg backdrop-blur-xl`} role="toolbar" aria-label="כלי עריכת מסמך">
               <div className="flex items-center gap-1.5 overflow-x-auto p-3 sm:px-4" dir="rtl">
-                <select aria-label="סגנון טקסט" title="סגנון טקסט" className="h-10 w-32 shrink-0 rounded-lg border border-white/10 bg-[#0b192b] px-2 text-sm font-bold text-white" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">טקסט רגיל</option><option value="h2">כותרת ראשית</option><option value="h3">כותרת משנה</option><option value="blockquote">ציטוט</option></select>
-                <label className="flex h-10 shrink-0 items-center gap-1 rounded-lg border border-electric/30 bg-electric/[0.08] px-2 text-xs font-bold text-electric-bright" title="גודל גופן במספרים">גודל<select aria-label="גודל גופן במספרים" defaultValue="12" onChange={(event) => applyFontSize(event.target.value)} className="h-8 w-16 rounded-md border border-white/15 bg-[#0b192b] px-1 text-center text-sm font-black text-white">{[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>
+                <select aria-label="סגנון טקסט" title="סגנון טקסט" className="h-10 w-32 shrink-0 rounded-lg border border-white/10 bg-[var(--ink)] px-2 text-sm font-bold text-white" defaultValue="p" onChange={(event) => command("formatBlock", event.target.value)}><option value="p">טקסט רגיל</option><option value="h2">כותרת ראשית</option><option value="h3">כותרת משנה</option><option value="blockquote">ציטוט</option></select>
+                <label className="flex h-10 shrink-0 items-center gap-1 rounded-lg border border-electric/30 bg-electric/[0.08] px-2 text-xs font-bold text-electric-bright" title="גודל גופן במספרים">גודל<select aria-label="גודל גופן במספרים" defaultValue="12" onChange={(event) => applyFontSize(event.target.value)} className="h-8 w-16 rounded-md border border-white/15 bg-[var(--ink)] px-1 text-center text-sm font-black text-white">{[8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72].map((size) => <option key={size} value={size}>{size}</option>)}</select></label>
                 <span className="mx-1 h-7 w-px shrink-0 bg-white/10" aria-hidden="true" />
                 <button type="button" title="מודגש" aria-label="מודגש" aria-pressed={activeCommands.has("bold")} onClick={() => command("bold")} className={`${toolbarButton} min-w-10 text-base ${activeCommands.has("bold") ? "border-electric/50 bg-electric/20 text-white" : ""}`}>B</button><button type="button" title="נטוי" aria-label="נטוי" aria-pressed={activeCommands.has("italic")} onClick={() => command("italic")} className={`${toolbarButton} min-w-10 font-serif text-base italic ${activeCommands.has("italic") ? "border-electric/50 bg-electric/20 text-white" : ""}`}>I</button><button type="button" title="קו תחתון" aria-label="קו תחתון" aria-pressed={activeCommands.has("underline")} onClick={() => command("underline")} className={`${toolbarButton} min-w-10 text-base underline ${activeCommands.has("underline") ? "border-electric/50 bg-electric/20 text-white" : ""}`}>U</button>
                 <span className="mx-1 h-7 w-px shrink-0 bg-white/10" aria-hidden="true" />
@@ -431,8 +446,8 @@ export function RichDocumentEditor({
                 <button type="button" title="הוספת קישור" aria-label="הוספת קישור" onClick={addLink} className={`${toolbarButton} min-w-10 text-lg`}>🔗</button><button type="button" title="קו מפריד" aria-label="קו מפריד" onClick={() => command("insertHorizontalRule")} className={`${toolbarButton} min-w-10 text-lg`}>―</button><button type="button" title="הוספת טבלה" aria-label="הוספת טבלה" onClick={addTable} className={`${toolbarButton} min-w-10 text-lg`}>▦</button>
                 <label className={`${toolbarButton} min-w-10 cursor-pointer px-1`} title="צבע טקסט"><span className="border-b-4 border-sky-400 px-1 text-base font-black">A</span><input aria-label="צבע טקסט" type="color" defaultValue="#0f172a" onChange={(event) => command("foreColor", event.target.value)} className="h-0 w-0 opacity-0" /></label><label className={`${toolbarButton} min-w-10 cursor-pointer px-1`} title="צבע הדגשה"><span className="rounded bg-yellow-200 px-1 text-base font-black text-slate-900">A</span><input aria-label="צבע הדגשה" type="color" defaultValue="#fef08a" onChange={(event) => command("hiliteColor", event.target.value)} className="h-0 w-0 opacity-0" /></label>
                 <button type="button" title="ניקוי עיצוב" aria-label="ניקוי עיצוב" onClick={() => command("removeFormat")} className={`${toolbarButton} min-w-10`}>Tx</button>
-                <select aria-label="הוספת שדה חכם" title="הוספת שדה חכם" defaultValue="" onChange={(event) => { if (event.target.value) insertQuickField(event.target.value); event.target.value = ""; }} className="h-10 w-36 shrink-0 rounded-lg border border-electric/25 bg-[#0b192b] px-2 text-sm font-bold text-sky-100"><option value="">+ שדה חכם</option>{quickFields.map((field) => <option key={field} value={field}>{field}</option>)}</select>
-                <label className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-[#0b192b] px-2 text-xs font-bold text-silver">כיוון דף<select aria-label="כיוון הדף" value={pageOrientation} onChange={(event) => setPageOrientation(event.target.value as PageOrientation)} className="h-8 rounded-md border border-white/10 bg-[#091627] px-2 text-sm font-bold text-white"><option value="portrait">לאורך</option><option value="landscape">לרוחב</option></select></label>
+                <select aria-label="הוספת שדה חכם" title="הוספת שדה חכם" defaultValue="" onChange={(event) => { if (event.target.value) insertQuickField(event.target.value); event.target.value = ""; }} className="h-10 w-36 shrink-0 rounded-lg border border-electric/25 bg-[var(--ink)] px-2 text-sm font-bold text-sky-100"><option value="">+ שדה חכם</option>{quickFields.map((field) => <option key={field} value={field}>{field}</option>)}</select>
+                <label className="flex h-10 shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-[var(--ink)] px-2 text-xs font-bold text-silver">כיוון דף<select aria-label="כיוון הדף" value={pageOrientation} onChange={(event) => setPageOrientation(event.target.value as PageOrientation)} className="h-8 rounded-md border border-white/10 bg-[var(--ink)] px-2 text-sm font-bold text-white"><option value="portrait">לאורך</option><option value="landscape">לרוחב</option></select></label>
                 <button type="button" onClick={printDocument} title="הדפסת המסמך" className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-green-300/25 bg-green-300/[0.08] px-3 text-sm font-bold text-green-100 transition hover:bg-green-300/[0.14]"><span aria-hidden="true">▣</span> הדפסה</button>
                 <button type="button" onClick={() => setFullscreen((value) => !value)} className="mr-auto inline-flex h-10 shrink-0 items-center justify-center rounded-lg border border-electric/30 bg-electric/10 px-3 text-sm font-bold text-electric-bright transition hover:bg-electric/15">{fullscreen ? "יציאה ממצב כתיבה" : "מצב כתיבה"}</button>
               </div>
@@ -442,11 +457,11 @@ export function RichDocumentEditor({
             </div>
           </div>
         ) : (
-          <div className="overflow-auto rounded-[24px] border border-white/10 bg-[#020813] p-3 sm:p-6 lg:p-8"><div className={`relative mx-auto w-full ${paperWidthClass}`} style={{ zoom: zoom / 100 } as CSSProperties}>{pageGuides}{pageHeader ? <div className="absolute inset-x-12 top-5 z-20 border-b border-slate-200 pb-2 text-center text-xs text-slate-500">{pageHeader}</div> : null}<div ref={previewRef} data-orientation={pageOrientation} style={{ colorScheme: "only light", aspectRatio: paperAspectRatio, fontFamily, lineHeight }} className="document-paper document-preview relative w-full rounded-md border border-slate-200 bg-white px-6 py-12 text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,.38)] sm:px-12 sm:py-16" dangerouslySetInnerHTML={{ __html: content }} />{(pageFooter || showPageNumbers) ? <div className="absolute inset-x-12 bottom-5 z-20 flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-500"><span>{pageFooter}</span>{showPageNumbers ? <span>עמוד 1 מתוך {pageCount}</span> : null}</div> : null}</div></div>
+          <div className="overflow-auto rounded-[24px] border border-white/10 bg-[var(--ink)] p-3 sm:p-6 lg:p-8"><div className={`relative mx-auto w-full ${paperWidthClass}`} style={{ zoom: zoom / 100 } as CSSProperties}>{pageGuides}{pageHeader ? <div className="absolute inset-x-12 top-5 z-20 border-b border-slate-200 pb-2 text-center text-xs text-slate-500">{pageHeader}</div> : null}<div ref={previewRef} data-orientation={pageOrientation} style={{ colorScheme: "only light", aspectRatio: paperAspectRatio, fontFamily, lineHeight }} className="document-paper document-preview relative w-full rounded-md border border-slate-200 bg-white px-6 py-12 text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,.38)] sm:px-12 sm:py-16" dangerouslySetInnerHTML={{ __html: content }} />{(pageFooter || showPageNumbers) ? <div className="absolute inset-x-12 bottom-5 z-20 flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-500"><span>{pageFooter}</span>{showPageNumbers ? <span>עמוד 1 מתוך {pageCount}</span> : null}</div> : null}</div></div>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-xs text-silver-muted"><span className="font-semibold">{wordCount.toLocaleString("he-IL")} מילים · {pageCount.toLocaleString("he-IL")} {pageCount === 1 ? "עמוד" : "עמודים"}</span><span>שמירה אוטומטית פעילה · Ctrl+S לשמירה מיידית</span></div>
-        <input ref={contentInputRef} type="hidden" name="content" defaultValue={initialDecoratedContent} />
+        <input ref={contentInputRef} type="hidden" name="content" value={content} readOnly />
         <input type="hidden" name="pageOrientation" value={pageOrientation} />
         <input type="hidden" name="pageHeader" value={pageHeader} />
         <input type="hidden" name="pageFooter" value={pageFooter} />

@@ -1,10 +1,12 @@
 "use server";
 
-import { createHash } from "node:crypto";
 import { Resend } from "resend";
 import { changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
-import { createDocument, createPdfDocument, duplicateHtmlDocument, getDocumentById, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
-import { saveCustomers } from "@/lib/customers";
+import { createDocument, createPdfDocument, duplicateHtmlDocument, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
+import { saveCustomers, updateCustomer } from "@/lib/customers";
+import { clearWorkspaceDraft } from "@/lib/workspace-drafts";
+import { clearPdfDraft } from "@/lib/pdf-drafts";
+import { completeDocumentEmail, reserveDocumentEmail } from "@/lib/document-tracking";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
 import { siteConfig } from "@/data/site";
 import { revalidatePath } from "next/cache";
@@ -30,7 +32,7 @@ export async function createDocumentAction(formData: FormData) {
   } catch {
     redirect("/dashboard?error=signers#create");
   }
-  if (signers.length < 1 || signers.length > 6 || signers.some((signer) => !signer.id || !signer.name.trim() || !/^\d{9}$/.test(signer.identityNumber))) redirect("/dashboard?error=signers#create");
+  if (signers.length < 1 || signers.length > 6 || new Set(signers.map((signer) => signer.id)).size !== signers.length || signers.some((signer) => !signer.id || !signer.name.trim() || !/^\d{9}$/.test(signer.identityNumber))) redirect("/dashboard?error=signers#create");
   const recipientName = signers[0].name.trim();
   const recipientEmail = signers[0].email.trim();
   let content = String(formData.get("content") ?? "").trim();
@@ -50,8 +52,9 @@ export async function createDocumentAction(formData: FormData) {
   if (!allowOpenFields && /\[[^\]]{2,100}\]|_{4,}/.test(content.replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", ""))) redirect("/dashboard?error=open-fields#create");
   const document = await createDocument({ title, recipientName, recipientEmail, content, signers: signers.map((signer) => ({ ...signer, token: "" })), template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
   await saveCustomers(signers.map((signer) => ({ fullName: signer.name, identityNumber: signer.identityNumber, email: signer.email, phone: signer.phone })));
+  try { await clearWorkspaceDraft(String(formData.get("draftRevision") ?? "") || null); } catch { /* Preserve a newer draft from another device. */ }
   revalidatePath("/dashboard");
-  redirect(`/dashboard?created=${document.token}#documents`);
+  redirect(`/dashboard?created=${document.id}#documents`);
 }
 
 export async function createPdfDocumentAction(formData: FormData) {
@@ -65,7 +68,8 @@ export async function createPdfDocumentAction(formData: FormData) {
   } catch {
     redirect("/dashboard?pdfError=fields#pdf");
   }
-  const signerCount = Math.min(4, Math.max(2, Number(formData.get("signerCount") ?? 2)));
+  const signerCount = Number(formData.get("signerCount"));
+  if (!Number.isInteger(signerCount) || signerCount < 1 || signerCount > 6) redirect("/dashboard?pdfError=signers#pdf");
   const signers = Array.from({ length: signerCount }, (_, index) => index + 1).map((number) => ({
     id: String(formData.get(`signer${number}Id`) ?? ""),
     label: String(formData.get(`signer${number}Label`) ?? ""),
@@ -91,6 +95,7 @@ export async function createPdfDocumentAction(formData: FormData) {
     redirect(`/dashboard?pdfError=${reason}#pdf`);
   }
   revalidatePath("/dashboard");
+  try { await clearPdfDraft(String(formData.get("pdfDraftRevision") ?? "") || null); } catch { /* Keep a newer PDF draft from another device. */ }
   redirect(`/dashboard?pdfCreated=${documentId}#documents`);
 }
 
@@ -133,25 +138,35 @@ export async function archiveDocumentAction(id: string, formData: FormData) {
 
 export async function sendDocumentEmailAction(id: string, signerId: string) {
   if (!(await isAuthenticated())) redirect("/login");
-  const document = await getDocumentById(id);
-  if (!document) redirect("/dashboard?mailError=missing#documents");
-  const signer = signerId ? document.signers?.find((item) => item.id === signerId) : undefined;
-  const email = signer?.email || document.recipientEmail;
-  const name = signer?.name || document.recipientName || "לקוח/ה";
-  const token = signer?.token || document.token;
   const from = process.env.CONTACT_FROM_EMAIL?.trim();
   const apiKey = process.env.RESEND_API_KEY;
-  if (!email || !token || !from || !apiKey) redirect("/dashboard?mailError=config#documents");
-  const url = `${siteConfig.url}/sign/${token}`;
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
-    from,
-    to: [email],
-    subject: `מסמך לחתימה: ${document.title}`,
-    text: [`שלום ${name},`, "", `ממתין לך מסמך לחתימה מאת ${siteConfig.name}:`, document.title, "", `פתיחת המסמך והחתימה: ${url}`, "", "הקישור אישי ואין להעבירו לאחר."].join("\n"),
-  }, { idempotencyKey: `document/${id}/${signerId || "recipient"}/${createHash("sha256").update(`${email}|${url}`).digest("hex").slice(0, 20)}/${Math.floor(Date.now() / 300000)}` });
-  if (error) redirect("/dashboard?mailError=send#documents");
+  if (!from || !apiKey) redirect("/dashboard?mailError=config#documents");
+  let failure = "";
+  try {
+    const reservation = await reserveDocumentEmail(id, signerId);
+    const { document, signer, email, token, delivery } = reservation;
+    const url = `${siteConfig.url}/sign/${token}`;
+    const { data, error } = await new Resend(apiKey).emails.send({
+      from, to: [email], subject: `${delivery.reminder ? "תזכורת לחתימה" : "מסמך לחתימה"}: ${document.title}`,
+      text: [`שלום ${signer?.name || document.recipientName || "לקוח/ה"},`, "", `${delivery.reminder ? "תזכורת: " : ""}ממתין לך מסמך לחתימה מאת ${siteConfig.name}:`, document.title, "", `פתיחת המסמך והחתימה: ${url}`, "", "הקישור אישי ואין להעבירו לאחר."].join("\n"),
+    }, { idempotencyKey: `document-delivery/${delivery.deliveryId}` });
+    if (error || !data?.id) throw new Error("send");
+    await completeDocumentEmail(reservation, data.id);
+  } catch (error) { failure = error instanceof Error && ["cooldown", "completed", "recipient", "unavailable"].includes(error.message) ? error.message : "send"; }
+  if (failure) redirect(`/dashboard?mailError=${failure}#documents`);
+  revalidatePath("/dashboard");
   redirect("/dashboard?sent=1#documents");
+}
+
+export async function updateCustomerAction(id: string, formData: FormData) {
+  if (!(await isAuthenticated())) return { ok: false, message: "יש להיכנס שוב לחשבון." };
+  try {
+    const customer = await updateCustomer(id, { fullName: String(formData.get("fullName") ?? ""), identityNumber: String(formData.get("identityNumber") ?? ""), email: String(formData.get("email") ?? ""), phone: String(formData.get("phone") ?? ""), notes: String(formData.get("notes") ?? "") });
+    revalidatePath("/dashboard");
+    return { ok: true, message: "פרטי הלקוח נשמרו.", customer };
+  } catch (error) {
+    return { ok: false, message: error instanceof Error && error.message === "identity-exists" ? "כבר קיים לקוח עם תעודת הזהות הזו." : "לא ניתן לשמור. בדקו שם, תעודת זהות ואימייל." };
+  }
 }
 
 export async function changePasswordAction(formData: FormData) {

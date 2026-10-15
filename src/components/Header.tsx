@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { navLinks } from "@/data/navigation";
 import { siteConfig } from "@/data/site";
 
 export function Header() {
+  const pathname = usePathname();
+  const inWorkspace = pathname.startsWith("/dashboard") || pathname === "/login";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -50,7 +53,7 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 xl:flex" aria-label="ניווט ראשי">
+        <nav className={`${inWorkspace ? "hidden" : "hidden xl:flex"} items-center gap-1`} aria-label="ניווט ראשי">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -66,13 +69,13 @@ export function Header() {
           <Link href="/login" className="hidden rounded-full px-3 py-2 text-sm font-semibold text-silver hover:text-white md:inline-flex">
             מסמכים וחתימות
           </Link>
-          <Link href="/#contact" className="btn btn-primary hidden px-5 text-sm sm:inline-flex">
-            דברו איתי
+          <Link href={inWorkspace ? "/" : "/#contact"} className={`btn btn-primary px-5 text-sm ${inWorkspace ? "inline-flex" : "hidden sm:inline-flex"}`}>
+            {inWorkspace ? "חזרה לאתר" : "דברו איתי"}
           </Link>
 
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white xl:hidden"
+            className={`${inWorkspace ? "hidden" : "inline-flex"} h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white xl:hidden`}
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? "סגירת תפריט" : "פתיחת תפריט"}
