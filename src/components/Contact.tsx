@@ -114,7 +114,7 @@ export function Contact() {
   }
 
   const fieldClass =
-    "w-full rounded-xl border border-white/20 bg-white/[0.045] px-4 py-3 text-white outline-none transition placeholder:text-silver-muted/70 focus:border-electric/70 focus:bg-white/[0.07]";
+    "contact-field w-full rounded-xl border px-4 py-3 text-white transition placeholder:text-silver-muted/70";
 
   return (
     <section id="contact" className="section-y relative" aria-labelledby="contact-title">

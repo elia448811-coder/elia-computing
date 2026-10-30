@@ -1,7 +1,10 @@
+import Image from "next/image";
+import { projects } from "@/data/projects";
+
 const areas = [
-  { label: "מחשוב", title: "לטפל במה שצריך.", detail: "תמיכה, התקנות ושדרוגים." },
-  { label: "תשתיות", title: "לתכנן בסיס מסודר.", detail: "רשתות, ענן ואבטחה." },
-  { label: "פיתוח", title: "לבנות את הצעד הבא.", detail: "אתרים, מערכות ואוטומציות." },
+  { title: "מחשוב שמטפל במה שצריך.", detail: "תמיכה, התקנות ושדרוגים." },
+  { title: "תשתיות לבסיס מסודר.", detail: "רשתות, ענן ואבטחה." },
+  { title: "פיתוח לצעד הבא.", detail: "אתרים, מערכות ואוטומציות." },
 ];
 
 export function Hero() {
@@ -10,7 +13,6 @@ export function Hero() {
       <div className="container-site">
         <div className="warm-hero-layout">
           <div className="warm-hero-copy">
-            <p className="warm-eyebrow">אליה. שירותי מחשוב.</p>
             <h1 id="hero-title" className="warm-hero-title">
               הטכנולוגיה<br />של העסק.<br /><span>בגובה העיניים.</span>
             </h1>
@@ -23,19 +25,26 @@ export function Hero() {
             </a>
           </div>
           <div className="warm-hero-visual">
-            <div className="stone-card">
-              <span className="stone-card-label" lang="en">ELIA</span>
-              <p className="stone-card-title">מחשוב.<br />עם קשר<br />אישי.</p>
-              <span className="stone-card-footer">שירותי מחשוב ופיתוח</span>
-            </div>
-            <p className="warm-hero-note">מהתקלה במחשב<br />ועד הרעיון למערכת הבאה.</p>
+            <figure className="stone-card">
+              <span className="stone-card-label">פרויקט לדוגמה</span>
+              <Image
+                className="stone-card-image"
+                src={projects[0].image}
+                alt="צילום מסך של מערכת חנה לניהול עסקי"
+                width={1440}
+                height={900}
+                sizes="(max-width: 640px) 212px, 298px"
+                priority
+                unoptimized
+              />
+              <figcaption className="stone-card-footer">חנה: מערכת לניהול עסקי שפיתחתי</figcaption>
+            </figure>
           </div>
         </div>
         <ul className="warm-areas" aria-label="תחומי השירות">
-          {areas.map((area, index) => (
-            <li key={area.label}>
+          {areas.map((area) => (
+            <li key={area.title}>
               <a href="#services">
-                <span className="warm-area-label"><span aria-hidden="true">0{index + 1}</span> {area.label}</span>
                 <h2>{area.title}</h2>
                 <p>{area.detail}</p>
               </a>

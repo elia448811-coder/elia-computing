@@ -1,6 +1,5 @@
 import { Projects } from "@/components/Projects";
 import { Contact } from "@/components/Contact";
-import { CTABanner } from "@/components/CTABanner";
 import { FAQ } from "@/components/FAQ";
 import { Hero } from "@/components/Hero";
 import { Process } from "@/components/Process";
@@ -18,7 +17,6 @@ export default function Home() {
       <Pricing />
       <Process />
       <FAQ />
-      <CTABanner />
       <Contact />
     </main>
   );
