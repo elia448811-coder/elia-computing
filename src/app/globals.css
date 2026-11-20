@@ -1247,3 +1247,8 @@ select.q-input { padding-inline-end:35px; appearance:none; background-image:url(
 .workspace-navigation { scrollbar-width:thin; scrollbar-color:#ac7d8c transparent; }
 .workspace [hidden] { display:none!important; }
 .q-heading { scroll-margin-top:100px; }
+@page quote-document { size:A4 portrait; margin:12mm; }
+@media print {
+  .quote-print-root { page:quote-document; }
+  .quote-print-root .quote-paper-footer { display:flex!important; }
+}
