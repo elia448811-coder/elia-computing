@@ -1,6 +1,7 @@
 import {
   money,
   quoteTotals,
+  quoteLineAmount,
   type QuoteInput,
   type Quote,
 } from "@/lib/quote-types";
@@ -81,7 +82,7 @@ export function QuoteDocument({
                 <td>{item.description || "תיאור השירות"}</td>
                 <td>{item.quantity}</td>
                 <td>{money(item.unitPrice)}</td>
-                <td>{money(Math.round(item.quantity * item.unitPrice))}</td>
+                <td>{money(quoteLineAmount(item))}</td>
               </tr>
             ))}
           </tbody>

@@ -270,3 +270,18 @@ test("password credential setup rejects weak passwords and unsupported usernames
   );
   assert.equal(db.records.size, 0);
 });
+
+test("fractional quantity rounds half an agora up on the invoice", () => {
+  const { math } = setup();
+  assert.equal(math.quoteLineAmount({ quantity: 1.15, unitPrice: 2990 }), 3439);
+});
+
+test("retrying a first save reuses its quote and sequence", async () => {
+  const { quotes } = setup();
+  const key = crypto.randomUUID();
+  const first = await quotes.saveQuote(input(), undefined, undefined, key);
+  const retried = await quotes.saveQuote(input(), undefined, undefined, key);
+  assert.deepEqual(retried, first);
+  await assert.rejects(quotes.saveQuote({ ...input(), title: "Changed" }, undefined, undefined, key), /conflict/);
+  assert.match((await quotes.saveQuote(input())).number, /-0002$/);
+});

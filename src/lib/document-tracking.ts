@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { getDatabase } from "@/lib/firebase-admin";
-import { getDocumentById, getSignerByToken } from "@/lib/documents";
+import { getDocumentById, getSignerByToken, signatureTokenHash } from "@/lib/documents";
 
 export async function recordDocumentView(token: string) {
   const context = await getSignerByToken(token);
@@ -38,6 +38,10 @@ export async function reserveDocumentEmail(id: string, signerId: string) {
   if (!email || !token) throw new Error("recipient");
   const ref = getDatabase().doc(`documentDeliveries/${createHash("sha256").update(`${id}/${signerId}`).digest("hex")}`);
   const delivery = await getDatabase().runTransaction(async (tx) => {
+    if (signer) {
+      const hash = signatureTokenHash(token);
+      if (!(await tx.get(getDatabase().doc(`signatureTokens/${hash}`))).exists) throw new Error("unavailable");
+    }
     const current = (await tx.get(ref)).data();
     if (current?.sentAt && Date.now() - Date.parse(current.sentAt) < 300000) throw new Error("cooldown");
     // Reuse an unresolved send for 23h (within the provider's idempotency window).

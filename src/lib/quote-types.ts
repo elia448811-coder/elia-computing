@@ -44,16 +44,19 @@ export function money(cents: number) {
     maximumFractionDigits: 2,
   }).format(cents / 100);
 }
+export function quoteLineAmount(item: Pick<QuoteItem, "quantity" | "unitPrice">) {
+  return Math.round((Math.round(item.quantity * 1000) * item.unitPrice) / 1000);
+}
 export function quoteTotals(
   input: Pick<QuoteInput, "items" | "discount" | "taxRate">,
 ) {
   const subtotal = input.items.reduce(
-    (total, item) => total + Math.round(item.quantity * item.unitPrice),
+    (total, item) => total + quoteLineAmount(item),
     0,
   );
-  const discountAmount = Math.round((subtotal * input.discount) / 100);
+  const discountAmount = Math.round((subtotal * Math.round(input.discount * 100)) / 10000);
   const net = subtotal - discountAmount;
-  const tax = Math.round((net * input.taxRate) / 100);
+  const tax = Math.round((net * Math.round(input.taxRate * 100)) / 10000);
   return { subtotal, discountAmount, net, tax, total: net + tax };
 }
 export function israelDate(now = new Date()) {

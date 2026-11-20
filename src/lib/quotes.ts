@@ -34,12 +34,14 @@ export async function saveQuote(
   raw: unknown,
   id?: string,
   revision?: number,
+  creationId?: string,
 ): Promise<ManagedQuote> {
   const input = validateQuoteInput(raw),
     db = getDatabase(),
     now = new Date().toISOString();
   if (id && !validId(id)) throw new Error("not-found");
-  const quoteId = id || randomUUID(),
+  if (creationId !== undefined && (!validId(creationId) || id)) throw new Error("invalid-input");
+  const quoteId = id || creationId || randomUUID(),
     ref = db.doc(`quotes/${quoteId}`);
   const quote = await db.runTransaction(async (tx) => {
     if (id) {
@@ -55,6 +57,14 @@ export async function saveQuote(
       };
       tx.set(ref, updated);
       return updated;
+    }
+    if (creationId) {
+      const existing = (await tx.get(ref)).data() as Quote | undefined;
+      if (existing) {
+        if (existing.status !== "draft" || existing.revision !== 1 ||
+            JSON.stringify(validateQuoteInput(existing)) !== JSON.stringify(input)) throw new Error("conflict");
+        return existing;
+      }
     }
     const counterRef = db.doc("system/quoteCounter");
     const sequence =

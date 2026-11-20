@@ -1,5 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run build",
-  "installCommand": "npm install"
+  "buildCommand": "env -u NPM_CONFIG_CACHE_DIR -u npm_config_cache_dir npm run build",
+  "installCommand": "env -u NPM_CONFIG_CACHE_DIR -u npm_config_cache_dir npm ci"
 }

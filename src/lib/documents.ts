@@ -68,7 +68,7 @@ function key() {
   if (!process.env.AUTH_SECRET) throw new Error("AUTH_SECRET must be configured");
   return createHash("sha256").update(process.env.AUTH_SECRET).digest();
 }
-function hash(token: string) { return createHmac("sha256", key()).update(token).digest("hex"); }
+export function signatureTokenHash(token: string) { return createHmac("sha256", key()).update(token).digest("hex"); }
 function encrypt(token: string) {
   const iv = randomBytes(12), cipher = createCipheriv("aes-256-gcm", key(), iv);
   const body = Buffer.concat([cipher.update(token, "utf8"), cipher.final()]);
@@ -142,10 +142,10 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
     const storedSigners = plainSigners.map(({ token: signerToken, ...signer }) => ({ ...signer, tokenCipher: encrypt(signerToken) }));
     const batch = database.batch();
     batch.create(database.doc(`signatureDocuments/${document.id}`), { ...stored, signers: storedSigners } satisfies StoredDocument);
-    plainSigners.forEach((signer) => batch.create(database.doc(`signatureTokens/${hash(signer.token)}`), { documentId: document.id, signerId: signer.id }));
+    plainSigners.forEach((signer) => batch.create(database.doc(`signatureTokens/${signatureTokenHash(signer.token)}`), { documentId: document.id, signerId: signer.id }));
     await batch.commit();
   } else {
-    await database.doc(`signatureDocuments/${hash(plain)}`).create({ ...stored, tokenCipher: encrypt(plain) } satisfies StoredDocument);
+    await database.doc(`signatureDocuments/${signatureTokenHash(plain)}`).create({ ...stored, tokenCipher: encrypt(plain) } satisfies StoredDocument);
   }
   return document;
 }
@@ -163,11 +163,30 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
     pageHeader: input.pageHeader?.trim().slice(0, 160) ?? "", pageFooter: input.pageFooter?.trim().slice(0, 160) ?? "",
     showPageNumbers: input.showPageNumbers !== false, fontFamily: input.fontFamily ?? "Heebo", lineHeight: input.lineHeight ?? "1.75", updatedAt,
   };
-  return getDatabase().runTransaction(async (transaction) => {
+  const db = getDatabase();
+  return db.runTransaction(async (transaction) => {
     const fresh = await transaction.get(snapshot.ref);
     if (!fresh.exists) throw new Error("document-not-found");
     const current = fresh.data() as StoredDocument;
     if (current.sourceType === "pdf" || current.signedAt || current.signers?.some((signer) => signer.signedAt)) throw new Error("document-locked");
+    const signers = current.signers;
+    const signer = signers?.[0];
+    if (signer) {
+      update.recipientName ??= signer.name;
+      update.recipientEmail ??= signer.email;
+      if (update.recipientName !== signer.name || update.recipientEmail !== signer.email) {
+        if (signers.length !== 1 || current.lastSentAt || current.firstViewedAt ||
+            signer.lastSentAt || signer.firstViewedAt || !update.recipientName) throw new Error("document-locked");
+        const delivery = await transaction.get(db.doc(`documentDeliveries/${createHash("sha256").update(`${id}/${signer.id}`).digest("hex")}`));
+        if (delivery.exists) throw new Error("document-locked");
+        const token = randomBytes(48).toString("base64url");
+        transaction.delete(db.doc(`signatureTokens/${signatureTokenHash(decrypt(signer.tokenCipher))}`));
+        transaction.set(db.doc(`signatureTokens/${signatureTokenHash(token)}`), { documentId: id, signerId: signer.id });
+        const changed = { ...update, signers: [{ ...signer, name: update.recipientName, email: update.recipientEmail, tokenCipher: encrypt(token) }] };
+        transaction.update(snapshot.ref, changed);
+        return expose({ ...current, ...changed } as StoredDocument);
+      }
+    }
     transaction.update(snapshot.ref, update);
     return { ...expose(current), ...update };
   });
@@ -226,7 +245,7 @@ export async function createPdfDocument(input: {
   };
   const db = getDatabase(), batch = db.batch();
   batch.create(db.doc(`signatureDocuments/${id}`), stored);
-  signers.forEach((signer) => batch.create(db.doc(`signatureTokens/${hash(signer.token)}`), { documentId: id, signerId: signer.id }));
+  signers.forEach((signer) => batch.create(db.doc(`signatureTokens/${signatureTokenHash(signer.token)}`), { documentId: id, signerId: signer.id }));
   chunks.forEach((chunk, index) => batch.create(db.doc(`signatureDocuments/${id}/pdfChunks/${String(index).padStart(4, "0")}`), { index, data: chunk }));
   await batch.commit();
   return expose(stored);
@@ -234,13 +253,13 @@ export async function createPdfDocument(input: {
 
 export async function getDocumentByToken(token: string) {
   if (!/^[A-Za-z0-9_-]{64}$/.test(token)) return undefined;
-  const db = getDatabase(), tokenSnapshot = await db.doc(`signatureTokens/${hash(token)}`).get();
+  const db = getDatabase(), tokenSnapshot = await db.doc(`signatureTokens/${signatureTokenHash(token)}`).get();
   if (tokenSnapshot.exists) {
     const { documentId } = tokenSnapshot.data() as { documentId: string };
     const snapshot = await db.doc(`signatureDocuments/${documentId}`).get();
     return snapshot.exists ? expose(snapshot.data() as StoredDocument) : undefined;
   }
-  const snapshot = await db.doc(`signatureDocuments/${hash(token)}`).get();
+  const snapshot = await db.doc(`signatureDocuments/${signatureTokenHash(token)}`).get();
   return snapshot.exists ? expose(snapshot.data() as StoredDocument) : undefined;
 }
 export async function getSignerByToken(token: string) {
@@ -253,9 +272,9 @@ export async function getSignerByToken(token: string) {
 
 export async function signDocument(token: string, signerName: string, signature: string, expectedRevision: string, audit?: { ipHash?: string; userAgent?: string }) {
   if (!/^[A-Za-z0-9_-]{64}$/.test(token) || !/^[a-f0-9]{64}$/.test(expectedRevision) || signerName.length > 160) return false;
-  const db = getDatabase(), tokenSnapshot = await db.doc(`signatureTokens/${hash(token)}`).get();
+  const db = getDatabase(), tokenSnapshot = await db.doc(`signatureTokens/${signatureTokenHash(token)}`).get();
   const tokenData = tokenSnapshot.exists ? tokenSnapshot.data() as { documentId: string; signerId: string } : undefined;
-  const ref = db.doc(`signatureDocuments/${tokenData?.documentId ?? hash(token)}`);
+  const ref = db.doc(`signatureDocuments/${tokenData?.documentId ?? signatureTokenHash(token)}`);
   const initial = await ref.get();
   if (!initial.exists || documentRevision(initial.data() as StoredDocument) !== expectedRevision) return false;
   const normalizedSignature = await normalizeSignatureImage(signature);

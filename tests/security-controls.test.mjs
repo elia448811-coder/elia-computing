@@ -110,3 +110,13 @@ test('current-factor proof allows removal and management lock state is enforced'
   assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey)), true);
   assert.equal(db.records.get('system/auth').totpEnabled, false);
 });
+
+test('unsent signer correction rotates the personal link and synchronizes the recipient', async () => {
+  const { documents } = modules(new MemoryDatabase());
+  const doc = await documents.createDocument({ title: 'Draft', content: '<p>Terms</p>', signers: [signer('one')] });
+  const updated = await documents.updateHtmlDocument(doc.id, { title: doc.title, content: doc.content, recipientName: 'Corrected', recipientEmail: 'corrected@example.test' });
+  assert.equal(updated.signers[0].name, updated.recipientName);
+  assert.equal(updated.signers[0].email, updated.recipientEmail);
+  assert.equal(await documents.getSignerByToken(doc.signers[0].token), undefined);
+  assert.equal((await documents.getSignerByToken(updated.signers[0].token)).signer.name, 'Corrected');
+});

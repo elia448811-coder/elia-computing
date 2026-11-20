@@ -23,10 +23,11 @@ async function mutate(request: Request) {
       typeof body.revision === "number" ? body.revision : undefined;
     if (request.method === "PATCH" && (!id || revision === undefined))
       throw new Error("invalid-input");
+    if (body.creationId !== undefined && typeof body.creationId !== "string") throw new Error("invalid-input");
     const quote =
       request.method === "PATCH"
         ? await transitionQuote(id!, String(body.action), revision!)
-        : await saveQuote(body.input, id, revision);
+        : await saveQuote(body.input, id, revision, body.creationId);
     return Response.json({ quote }, { headers });
   } catch (error) {
     const reason = error instanceof Error ? error.message : "invalid-input";

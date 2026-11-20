@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getApp, getApps, initializeApp } from "@firebase/app";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "@firebase/auth";
 
 const allowedEmail = "elia448811@gmail.com";
 const firebaseConfig = {

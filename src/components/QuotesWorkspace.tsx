@@ -7,6 +7,7 @@ import {
   quoteDisplayStatus,
   quoteStatusLabels,
   quoteTotals,
+  quoteLineAmount,
   type ManagedQuote,
   type QuoteInput,
 } from "@/lib/quote-types";
@@ -116,6 +117,7 @@ export function QuotesWorkspace({ customers }: { customers: Customer[] }) {
   const [draft, setDraft] = useState<QuoteInput>(emptyQuote),
     [dirty, setDirty] = useState(false),
     [confirmSend, setConfirmSend] = useState<ManagedQuote>();
+  const creationId = useRef<string>(undefined);
   const [showPreview, setShowPreview] = useState(false);
   useEffect(() => {
     if (mode !== "list")
@@ -138,7 +140,8 @@ export function QuotesWorkspace({ customers }: { customers: Customer[] }) {
     }
   }, []);
   useEffect(() => {
-    void refresh();
+    const initialLoad = window.setTimeout(refresh, 0);
+    return () => window.clearTimeout(initialLoad);
   }, [refresh]);
   useEffect(() => {
     if (!dirty) return;
@@ -182,6 +185,7 @@ export function QuotesWorkspace({ customers }: { customers: Customer[] }) {
   function newQuote(quote?: ManagedQuote, duplicate = false) {
     if (dirty && !window.confirm("יש שינויים שלא נשמרו. לצאת בלי לשמור?"))
       return;
+    creationId.current = duplicate || !quote ? crypto.randomUUID() : undefined;
     setSelected(duplicate ? undefined : quote);
     setDraft(quote ? inputFromQuote(quote) : emptyQuote());
     setDirty(duplicate);
@@ -213,6 +217,7 @@ export function QuotesWorkspace({ customers }: { customers: Customer[] }) {
     try {
       const { quote } = await api({
         input: draft,
+        creationId: selected ? undefined : creationId.current,
         id: selected?.id,
         revision: selected?.revision,
       });
@@ -755,7 +760,7 @@ export function QuotesWorkspace({ customers }: { customers: Customer[] }) {
                     </label>
                     <div className="q-line-total">
                       <span>סה״כ</span>
-                      <b>{money(Math.round(item.quantity * item.unitPrice))}</b>
+                      <b>{money(quoteLineAmount(item))}</b>
                     </div>
                     <button
                       type="button"
