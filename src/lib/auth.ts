@@ -13,6 +13,7 @@ const TOTP_PERIOD_SECONDS = 30;
 const TOTP_DIGITS = 6;
 const scrypt = promisify(scryptCallback);
 type AuthState = {
+  loginUsername?: string;
   passwordHash?: string;
   sessionVersion: number;
   totpEnabled?: boolean;
@@ -49,6 +50,7 @@ async function state(): Promise<AuthState> {
   const data = (await getDatabase().doc("system/auth").get()).data() as Partial<AuthState> | undefined;
   return {
     passwordHash: data?.passwordHash,
+    loginUsername: data?.loginUsername,
     sessionVersion: Number(data?.sessionVersion ?? 1),
     totpEnabled: data?.totpEnabled === true,
     totpSecretCipher: data?.totpSecretCipher,
@@ -141,8 +143,9 @@ async function fail(key: string) {
 }
 export async function authenticate(username: string, password: string, key: string) {
   if (await attemptCount(key) >= MAX_ATTEMPTS) return { ok: false, locked: true };
-  const expected = process.env.ADMIN_USERNAME ?? "";
-  const valid = Boolean(expected && safeEqual(username, expected) && await passwordMatches(password, (await state()).passwordHash));
+  const auth = await state();
+  const expected = auth.loginUsername || process.env.ADMIN_USERNAME || "";
+  const valid = Boolean(expected && password && safeEqual(username, expected) && await passwordMatches(password, auth.passwordHash));
   if (!valid) { await fail(key); return { ok: false, locked: false }; }
   await getDatabase().doc(`loginAttempts/${key}`).delete();
   return { ok: true, locked: false };
@@ -272,9 +275,9 @@ export async function isAuthenticated() {
   const parts = (await cookies()).get(COOKIE_NAME)?.value.split(".") ?? [];
   if (parts.length !== 4) return false;
   const [role, expires, version, signature] = parts, payload = `${role}.${expires}.${version}`;
-  const auth = await state();
-  return role === "admin" && Number(expires) > Math.floor(Date.now() / 1000) &&
-    Number(version) === auth.sessionVersion && safeEqual(signature, sign(payload));
+  if (role !== "admin" || !Number.isSafeInteger(Number(expires)) || Number(expires) <= Math.floor(Date.now() / 1000) ||
+    !safeEqual(signature, sign(payload))) return false;
+  return Number(version) === (await state()).sessionVersion;
 }
 export function validateNewPassword(password: string, username: string) {
   if (password.length < 12) return "short";
@@ -289,5 +292,14 @@ export async function changePassword(current: string, next: string) {
     if (!(await passwordMatches(current, data?.passwordHash))) return false;
     tx.set(ref, { passwordHash: nextHash, sessionVersion: Number(data?.sessionVersion ?? 1) + 1 }, { merge: true });
     return true;
+  });
+}
+
+export async function setLoginCredentials(username: string, password: string) {
+  if (!/^[A-Za-z0-9_.@-]{3,160}$/.test(username) || validateNewPassword(password, username)) throw new Error("invalid-credentials");
+  const passwordHash = await hashPassword(password), db = getDatabase(), ref = db.doc("system/auth");
+  await db.runTransaction(async (tx) => {
+    const current = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
+    tx.set(ref, { loginUsername: username, passwordHash, sessionVersion: Number(current?.sessionVersion ?? 1) + 1 }, { merge: true });
   });
 }

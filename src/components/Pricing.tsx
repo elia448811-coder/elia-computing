@@ -1,3 +1,4 @@
+import { PlanContactLink } from "@/components/PlanContactLink";
 import { Reveal } from "@/components/Reveal";
 import { SectionHeading } from "@/components/SectionHeading";
 
@@ -133,12 +134,12 @@ export function Pricing() {
                   ))}
                 </ul>
 
-                <a
-                  href="#contact"
+                <PlanContactLink
+                  plan={plan.name}
                   className={`btn mt-8 ${plan.featured ? "btn-primary" : "btn-secondary"}`}
                 >
                   {plan.cta}
-                </a>
+                </PlanContactLink>
               </article>
             </Reveal>
           ))}

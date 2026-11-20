@@ -2,23 +2,68 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GoogleLoginButton } from "@/components/GoogleLoginButton";
-import { Logo } from "@/components/Logo";
+import { PasswordLoginForm } from "@/components/PasswordLoginForm";
 import { isAuthenticated } from "@/lib/auth";
-
-export const metadata: Metadata = { title: "כניסה למסמכים וחתימות", robots: { index: false } };
-
-export default async function LoginPage() {
+export const metadata: Metadata = {
+  title: "כניסה לניהול העסק",
+  robots: { index: false },
+  alternates: { canonical: "/login" },
+};
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
   if (await isAuthenticated()) redirect("/dashboard");
+  const { error } = await searchParams;
   return (
-    <main id="main" className="flex min-h-screen items-center justify-center px-4 py-28">
-      <div className="glass w-full max-w-md rounded-[var(--radius-xl)] p-7 sm:p-10">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-3">
-          <Logo variant="for-dark" className="h-16 w-16" sizes="64px" />
-          <span className="font-bold text-white">אליה שירותי מחשוב</span>
-        </Link>
-        <h1 className="text-center text-3xl font-bold text-white">מסמכים וחתימות</h1>
-        <p className="mt-2 text-center text-silver-muted">ניהול מסמכים, לקוחות ועד שישה חותמים עם קישורים אישיים</p>
-        <div className="mt-7"><GoogleLoginButton /></div>
+    <main id="main" className="q-login-page quotes-app">
+      <div className="q-login-shell">
+        <section className="q-login-story">
+          <Link href="/" className="q-login-brand">
+            E.<span>אליה שירותי מחשוב</span>
+          </Link>
+          <div>
+            <p className="quote-eyebrow">סדר בעסק. שקט בראש.</p>
+            <h1>
+              מהצעה טובה
+              <br />
+              לעבודה הבאה.
+            </h1>
+            <p>כל הצעות המחיר, הלקוחות והמסמכים שלך — בסביבת עבודה אחת.</p>
+          </div>
+          <div className="q-login-example" aria-hidden="true">
+            <div>
+              <span>הצעת מחיר חדשה</span>
+              <span className="q-badge q-status-accepted">מוכנה לשליחה</span>
+            </div>
+            <strong>
+              נראה מקצועי.
+              <br />
+              מרגיש פשוט.
+            </strong>
+            <div className="q-login-lines">
+              <i />
+              <i />
+              <i />
+            </div>
+            <span>יוצרים · שולחים · מתקדמים</span>
+          </div>
+          <p className="q-login-story-footer">כלים חכמים לעסק שלך.</p>
+        </section>
+        <section className="q-login-panel">
+          <p className="quote-eyebrow">האזור האישי</p>
+          <h2>טוב שחזרת.</h2>
+          <p>התחברו כדי להמשיך לנהל את העסק.</p>
+          <PasswordLoginForm error={error} />
+          <div className="q-login-divider">
+            <span>או ממשיכים עם Google</span>
+          </div>
+          <GoogleLoginButton />
+          <Link href="/" className="q-text-link">
+            חזרה לאתר
+          </Link>
+        </section>
       </div>
     </main>
   );

@@ -22,7 +22,7 @@ export default function ProjectsPage() {
           <div className="projects-collection-label"><h2>הפרויקטים שלנו</h2><span>מערכות · אתרים · משחקים</span></div>
         </section>
         <ProjectCards />
-        <section className="projects-cta" aria-labelledby="projects-cta-title"><div><p className="project-category">הפרויקט הבא מתחיל ברעיון שלכם</p><h2 id="projects-cta-title">מה נבנה יחד?</h2><p>אתר לעסק, מערכת בהתאמה אישית או רעיון שעוד מחכה לקרות.</p></div><Link href="/#contact" className="btn btn-primary">בואו נדבר על הפרויקט שלכם <span aria-hidden="true">←</span></Link></section>
+        <section className="projects-cta" aria-labelledby="projects-cta-title"><div><p className="project-category">הפרויקט הבא מתחיל ברעיון שלכם</p><h2 id="projects-cta-title">מה נבנה יחד?</h2><p>אתר לעסק, מערכת בהתאמה אישית או רעיון שעוד מחכה לקרות.</p></div><Link href="/#contact" className="btn btn-primary">בואו נדבר על הפרויקט שלכם</Link></section>
       </div>
     </main>
   );

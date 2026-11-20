@@ -21,7 +21,7 @@ export function Hero() {
               ולעזור לכם למצוא את הפתרון המתאים.
             </p>
             <a href="#contact" className="btn btn-primary warm-hero-cta">
-              ספרו לי על העסק <span aria-hidden="true">↙</span>
+              ספרו לי על העסק
             </a>
           </div>
           <div className="warm-hero-visual">

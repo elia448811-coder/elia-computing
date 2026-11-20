@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Reveal } from "@/components/Reveal";
 import { SectionHeading } from "@/components/SectionHeading";
 import { serviceTypeOptions } from "@/data/content";
@@ -38,6 +38,18 @@ export function Contact() {
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState("");
+
+  useEffect(() => {
+    const select = (event: Event) => {
+      const value: unknown = (event as CustomEvent).detail;
+      if (typeof value === "string" && (serviceTypeOptions as readonly string[]).includes(value)) {
+        setForm((current) => ({ ...current, serviceType: value }));
+        setErrors((current) => ({ ...current, serviceType: undefined }));
+      }
+    };
+    window.addEventListener("elia:select-service", select);
+    return () => window.removeEventListener("elia:select-service", select);
+  }, []);
 
   const whatsappHref = useMemo(() => {
     if (!siteConfig.contact.whatsapp) return "";
@@ -183,6 +195,8 @@ export function Contact() {
                 </label>
                 <input
                   id="fullName"
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? "fullName-error" : undefined}
                   name="fullName"
                   autoComplete="name"
                   maxLength={80}
@@ -192,7 +206,7 @@ export function Contact() {
                   required
                 />
                 {errors.fullName ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.fullName}</p>
+                  <p id="fullName-error" className="mt-1 text-sm text-red-300">{errors.fullName}</p>
                 ) : null}
               </div>
 
@@ -202,6 +216,8 @@ export function Contact() {
                 </label>
                 <input
                   id="phone"
+                  aria-invalid={Boolean(errors.phone)}
+                  aria-describedby={errors.phone ? "phone-error" : undefined}
                   name="phone"
                   type="tel"
                   autoComplete="tel"
@@ -212,7 +228,7 @@ export function Contact() {
                   required
                 />
                 {errors.phone ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.phone}</p>
+                  <p id="phone-error" className="mt-1 text-sm text-red-300">{errors.phone}</p>
                 ) : null}
               </div>
 
@@ -222,6 +238,8 @@ export function Contact() {
                 </label>
                 <input
                   id="email"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                   name="email"
                   type="email"
                   autoComplete="email"
@@ -232,7 +250,7 @@ export function Contact() {
                   required
                 />
                 {errors.email ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.email}</p>
+                  <p id="email-error" className="mt-1 text-sm text-red-300">{errors.email}</p>
                 ) : null}
               </div>
 
@@ -242,6 +260,8 @@ export function Contact() {
                 </label>
                 <select
                   id="serviceType"
+                  aria-invalid={Boolean(errors.serviceType)}
+                  aria-describedby={errors.serviceType ? "serviceType-error" : undefined}
                   name="serviceType"
                   className={fieldClass}
                   value={form.serviceType}
@@ -258,7 +278,7 @@ export function Contact() {
                   ))}
                 </select>
                 {errors.serviceType ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.serviceType}</p>
+                  <p id="serviceType-error" className="mt-1 text-sm text-red-300">{errors.serviceType}</p>
                 ) : null}
               </div>
 
@@ -268,6 +288,8 @@ export function Contact() {
                 </label>
                 <textarea
                   id="message"
+                  aria-invalid={Boolean(errors.message)}
+                  aria-describedby={errors.message ? "message-error" : undefined}
                   name="message"
                   rows={5}
                   maxLength={2000}
@@ -277,7 +299,7 @@ export function Contact() {
                   required
                 />
                 {errors.message ? (
-                  <p className="mt-1 text-xs text-red-300">{errors.message}</p>
+                  <p id="message-error" className="mt-1 text-sm text-red-300">{errors.message}</p>
                 ) : null}
               </div>
             </div>

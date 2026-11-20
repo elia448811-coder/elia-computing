@@ -28,7 +28,7 @@ export function ProjectCards({ compact = false }: { compact?: boolean }) {
             {!compact ? <ul className="project-tags" aria-label="תחומי הפרויקט">{project.tags.map(tag => <li key={tag}>{tag}</li>)}</ul> : null}
             <a className="project-link" href={project.href} target="_blank" rel="noopener noreferrer">
               <span>{project.action}<span className="sr-only"> (נפתח בחלון חדש)</span></span>
-              <span className="project-link-arrow" aria-hidden="true">↗</span>
+
             </a>
           </div>
         </article>
@@ -43,7 +43,7 @@ export function Projects() {
       <div className="container-site">
         <div className="projects-section-heading">
           <div><p className="project-category">עבודה אמיתית, תוצאה שאפשר לראות</p><h2 id="projects-title">מהרעיון למסך.</h2><p className="mt-3 text-silver-muted">הצצה לפרויקטים שפיתחנו ולעסקים שקיבלו נוכחות דיגיטלית משלהם.</p></div>
-          <Link href="/projects" className="btn btn-secondary">לכל הפרויקטים <span aria-hidden="true">←</span></Link>
+          <Link href="/projects" className="btn btn-secondary">לכל הפרויקטים</Link>
         </div>
         <ProjectCards compact />
       </div>

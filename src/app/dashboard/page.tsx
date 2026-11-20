@@ -7,7 +7,7 @@ import { listDocuments } from "@/lib/documents";
 import { listCustomers } from "@/lib/customers";
 import { signatureProgress } from "@/lib/document-status";
 
-export const metadata: Metadata = { title: "מסמכים וחתימות", robots: { index: false } };
+export const metadata: Metadata = { title: "ניהול העסק והצעות מחיר", robots: { index: false } };
 type DashboardQuery = { created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardQuery> }) {

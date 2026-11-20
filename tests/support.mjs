@@ -67,6 +67,7 @@ export function modules(db) {
       if (name === 'server-only') return {};
       if (name === '@/lib/firebase-admin') return { getDatabase: () => db };
       if (name === 'next/headers') return { cookies: async () => ({ set() {}, get() {}, delete() {} }) };
+      if (name.startsWith('@/data/')) return load(`src/data/${name.slice('@/data/'.length)}.ts`);
       if (name.startsWith('@/lib/')) return load(`src/lib/${name.slice('@/lib/'.length)}.ts`);
       return ordinaryRequire(name);
     };

@@ -1,7 +1,9 @@
 import { createSession, getTwoFactorStatus, hashIdentifier, recordSecurityLogin, verifyLoginTwoFactor } from "@/lib/auth";
+import { sameOrigin } from "@/lib/request-origin";
 import { verifyAllowedGoogleUser } from "@/lib/firebase-auth-admin";
 
 export async function POST(request: Request) {
+  if (!sameOrigin(request)) return Response.json({ error: "forbidden" }, { status: 403 });
   try {
     const body = await request.json() as { idToken?: unknown; totpCode?: unknown };
     const idToken = typeof body.idToken === "string" ? body.idToken : "";

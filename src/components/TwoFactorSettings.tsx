@@ -61,7 +61,7 @@ export function TwoFactorSettings({ initialEnabled, initialRecoveryCodesRemainin
   return (
     <section className="rounded-2xl border border-electric/20 bg-electric/[0.055] p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><p className="text-sm font-bold text-electric-bright">אפליקציית מאמת</p><h3 className="mt-1 text-xl font-bold text-white">אימות דו־שלבי</h3><p className="mt-2 max-w-xl text-sm leading-relaxed text-silver-muted">לאחר הכניסה עם Google תידרשו להקליד קוד מתחלף מאפליקציה כמו Google Authenticator או Microsoft Authenticator.</p></div>
+        <div><p className="text-sm font-bold text-electric-bright">אפליקציית מאמת</p><h3 className="mt-1 text-xl font-bold text-white">אימות דו־שלבי</h3><p className="mt-2 max-w-xl text-sm leading-relaxed text-silver-muted">לאחר הכניסה עם Google או עם סיסמה תידרשו להקליד קוד מתחלף מאפליקציה כמו Google Authenticator או Microsoft Authenticator.</p></div>
         <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${enabled ? "border-green-300/25 bg-green-300/10 text-green-100" : "border-amber-300/20 bg-amber-300/[0.08] text-amber-100"}`}>{enabled ? "מופעל" : "לא מופעל"}</span>
       </div>
 

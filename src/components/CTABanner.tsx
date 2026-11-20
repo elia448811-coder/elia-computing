@@ -10,7 +10,7 @@ export function CTABanner() {
               <h2 id="cta-title" className="section-title">מה תרצו לעשות ביחד?</h2>
               <p className="mt-4 text-lg text-silver-muted">אפשר להתחיל בשיחה.</p>
             </div>
-            <a href="#contact" className="btn btn-primary">דברו איתי <span aria-hidden="true">↙</span></a>
+            <a href="#contact" className="btn btn-primary">דברו איתי</a>
           </div>
         </Reveal>
       </div>

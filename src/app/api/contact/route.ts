@@ -2,6 +2,7 @@ import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { serviceTypeOptions } from "@/data/content";
+import { sameOrigin } from "@/lib/request-origin";
 import { siteConfig } from "@/data/site";
 
 export const runtime = "nodejs";
@@ -69,7 +70,8 @@ function readRateCookie(request: Request) {
 
   if (!match) return null;
 
-  const raw = decodeURIComponent(match.slice(COOKIE_NAME.length + 1));
+  let raw: string;
+  try { raw = decodeURIComponent(match.slice(COOKIE_NAME.length + 1)); } catch { return null; }
   const [timestampRaw, signature] = raw.split(".");
   const timestamp = Number(timestampRaw);
   if (!timestamp || !signature || Number.isNaN(timestamp)) return null;
@@ -127,27 +129,7 @@ function withRateCookie(response: NextResponse) {
   return response;
 }
 
-function isAllowedOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (!origin) return true;
-
-  try {
-    const allowed = new URL(siteConfig.url).origin;
-    const requestOrigin = new URL(origin).origin;
-    if (requestOrigin === allowed) return true;
-    if (requestOrigin === "http://localhost:3000") return true;
-    if (
-      requestOrigin.endsWith(".vercel.app") &&
-      requestOrigin.includes("elia-computing")
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-
-  return false;
-}
+function isAllowedOrigin(request: Request) { return sameOrigin(request); }
 
 export async function POST(request: Request) {
   if (!isAllowedOrigin(request)) {
@@ -172,7 +154,11 @@ export async function POST(request: Request) {
   let body: ContactBody;
 
   try {
-    body = (await request.json()) as ContactBody;
+    const raw = await request.text();
+    if (raw.length > 12000) return NextResponse.json({ error: "בקשה גדולה מדי" }, { status: 413 });
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Object.values(parsed).some((value) => typeof value !== "string")) return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
+    body = parsed as ContactBody;
   } catch {
     return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
   }
@@ -229,6 +215,7 @@ export async function POST(request: Request) {
     .slice(0, 24);
   const idempotencyKey = `contact-form/${fingerprint}/${Math.floor(Date.now() / 60_000)}`;
 
+  try {
   const { error } = await resend.emails.send(
     {
       from: fromEmail,
@@ -270,6 +257,7 @@ export async function POST(request: Request) {
   }
 
   return withRateCookie(NextResponse.json({ ok: true, delivered: true }));
+  } catch { return NextResponse.json({ error: "שליחת הפנייה נכשלה. נסו שוב בעוד רגע." }, { status: 502 }); }
 }
 
 function escapeHtml(value: string) {

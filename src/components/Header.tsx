@@ -9,7 +9,7 @@ import { siteConfig } from "@/data/site";
 
 export function Header() {
   const pathname = usePathname();
-  const inWorkspace = pathname.startsWith("/dashboard") || pathname === "/login";
+  const inWorkspace = pathname.startsWith("/dashboard") || pathname === "/login" || pathname.startsWith("/quote/");
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -25,6 +25,13 @@ export function Header() {
     return () => {
       document.body.style.overflow = "";
     };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
   }, [open]);
 
   return (
@@ -67,7 +74,7 @@ export function Header() {
 
         <div className="flex items-center gap-3">
           <Link href="/login" className="hidden rounded-full px-3 py-2 text-sm font-semibold text-silver hover:text-white md:inline-flex">
-            מסמכים וחתימות
+            ניהול העסק
           </Link>
           <Link href={inWorkspace ? "/" : "/#contact"} className={`btn btn-primary px-5 text-sm ${inWorkspace ? "inline-flex" : "hidden sm:inline-flex"}`}>
             {inWorkspace ? "חזרה לאתר" : "דברו איתי"}
@@ -128,7 +135,7 @@ export function Header() {
             דברו איתי
           </Link>
           <Link href="/login" className="rounded-xl px-3 py-3 text-base text-silver hover:bg-white/5 hover:text-white" onClick={() => setOpen(false)}>
-            מסמכים וחתימות
+            ניהול העסק
           </Link>
         </nav>
       </div>
