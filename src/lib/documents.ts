@@ -42,6 +42,28 @@ export function documentRevision(document: SignatureDocument | StoredDocument) {
   return createHash("sha256").update(JSON.stringify(content)).digest("hex");
 }
 
+export function hasOpenDocumentFields(content: string) {
+  // Preserve block boundaries, but treat adjacent inline runs as one visible field.
+  let emptyField = false;
+  const html = sanitizeHtml(content, {
+    allowedTags: ["p", "br", "hr", "h1", "h2", "h3", "li", "td", "th", "tr", "blockquote", "span"],
+    allowedAttributes: { span: ["class", "data-field"] },
+    exclusiveFilter(frame) {
+      if (frame.tag === "span" && frame.attribs.class?.split(/\s+/).includes("quick-field-token") &&
+          frame.attribs["data-field"] !== "[חתימת הלקוח]" && !frame.text.trim()) emptyField = true;
+      return false;
+    },
+  });
+  const text = html.replace(/<\/?span\b[^>]*>/g, "").replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", "");
+  return emptyField || /\[[^\]]{2,100}\]|_{4,}/.test(text);
+}
+
+export function signingBlockReason(document: Pick<SignatureDocument, "archivedAt" | "sourceType" | "content">) {
+  if (document.archivedAt) return "archived";
+  if (document.sourceType !== "pdf" && hasOpenDocumentFields(document.content ?? "")) return "open-fields";
+  return null;
+}
+
 export function cleanHtml(content: string) {
   return sanitizeHtml(content, {
     allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
@@ -279,28 +301,23 @@ export async function signDocument(token: string, signerName: string, signature:
   if (!initial.exists || documentRevision(initial.data() as StoredDocument) !== expectedRevision) return false;
   const normalizedSignature = await normalizeSignatureImage(signature);
   if (!normalizedSignature) return false;
-  if (tokenSnapshot.exists) {
-    const signerId = tokenData?.signerId;
-    return db.runTransaction(async (transaction) => {
-      const snapshot = await transaction.get(ref);
-      if (!snapshot.exists) return false;
-      const document = snapshot.data() as StoredDocument, signers = document.signers ?? [];
-      const target = signers.find((signer) => signer.id === signerId);
-      if (!target || target.signedAt || documentRevision(document) !== expectedRevision) return false;
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    if (!snapshot.exists) return false;
+    const document = snapshot.data() as StoredDocument;
+    if (document.signedAt || signingBlockReason(document) || documentRevision(document) !== expectedRevision) return false;
+    if (tokenSnapshot.exists) {
+      const signers = document.signers ?? [];
+      const target = signers.find((signer) => signer.id === tokenData?.signerId);
+      if (!target || target.signedAt) return false;
       const signedAt = new Date().toISOString();
-      const updated = signers.map((signer) => signer.id === signerId ? {
+      const updated = signers.map((signer) => signer.id === target.id ? {
         ...signer, signature: normalizedSignature, signedAt, signedContentHash: expectedRevision, signerIpHash: audit?.ipHash,
         signerUserAgent: audit?.userAgent?.slice(0, 300),
       } : signer);
       transaction.update(ref, { signers: updated, ...(updated.every((signer) => signer.signedAt) ? { signedAt } : {}) });
       return true;
-    });
-  }
-  return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists) return false;
-    const document = snapshot.data() as StoredDocument;
-    if (document.signedAt || documentRevision(document) !== expectedRevision) return false;
+    }
     transaction.update(ref, {
       signerName, signature: normalizedSignature, signedAt: new Date().toISOString(),
       signedContentHash: expectedRevision,
