@@ -120,3 +120,34 @@ test('unsent signer correction rotates the personal link and synchronizes the re
   assert.equal(await documents.getSignerByToken(doc.signers[0].token), undefined);
   assert.equal((await documents.getSignerByToken(updated.signers[0].token)).signer.name, 'Corrected');
 });
+
+test('only complete active documents accept signatures, for both token formats', async () => {
+  const signature = await png();
+  for (const indexed of [false, true]) {
+    const db = new MemoryDatabase(), { documents } = modules(db);
+    const create = async (content) => {
+      const doc = await documents.createDocument({ title: 'Fixture', content, ...(indexed ? { signers: [signer('one')] } : {}) });
+      const token = indexed ? doc.signers[0].token : doc.token;
+      return { doc, sign: () => documents.signDocument(token, 'Fixture signer', signature, documents.documentRevision(doc)) };
+    };
+    for (const html of ['<p>[שם הלקוח]</p>', '<p>&#95;&#95;<strong>__</strong></p>', '<span class="quick-field-token" data-field="[סכום]">&nbsp;</span>']) {
+      const { doc, sign } = await create(html);
+      assert.equal(await sign(), false);
+      const saved = await documents.getDocumentById(doc.id);
+      assert.equal(saved.signedAt, undefined);
+      assert.equal(saved.signers?.[0]?.signedAt, undefined);
+    }
+    const { doc, sign } = await create('<p>Final terms [חתימת הלקוח]</p>');
+    db.beforeTransaction = () => documents.setDocumentArchived(doc.id, true);
+    assert.equal(await sign(), false);
+    await documents.setDocumentArchived(doc.id, false);
+    assert.equal(await sign(), true);
+  }
+});
+
+test('PDF signing respects archive state and uses the PDF fields', () => {
+  const { documents } = modules(new MemoryDatabase());
+  const pdf = { sourceType: 'pdf', content: '[HTML-only placeholder]' };
+  assert.equal(documents.signingBlockReason(pdf), null);
+  assert.equal(documents.signingBlockReason({ ...pdf, archivedAt: '2026-11-20' }), 'archived');
+});

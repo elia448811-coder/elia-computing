@@ -5,7 +5,7 @@ import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
 import { DocumentViewTracker } from "@/components/DocumentViewTracker";
-import { documentRevision, getSignerByToken, renderHtmlForSigner } from "@/lib/documents";
+import { documentRevision, getSignerByToken, renderHtmlForSigner, signingBlockReason } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
 export const metadata: Metadata = { title: "חתימה ידנית על מסמך", robots: { index: false } };
@@ -24,7 +24,7 @@ export default async function SignPage({ params, searchParams }: {
   const signerName = signer?.name ?? document.recipientName ?? "";
   const signature = signer?.signature ?? document.signature;
   const allComplete = document.signers?.every((item) => item.signedAt) ?? Boolean(document.signedAt);
-  const hasOpenFields = !isPdf && Boolean((document.content ?? "").replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", "").match(/\[[^\]]{2,100}\]|_{4,}/));
+  const blocked = signingBlockReason(document);
   const action = signDocumentAction.bind(null, token, documentRevision(document));
   const renderedContent = renderHtmlForSigner(document, signer?.id);
 
@@ -48,7 +48,7 @@ export default async function SignPage({ params, searchParams }: {
             </div>
           ) : <div className="document-preview my-8 rounded-2xl bg-white p-5 leading-8 text-slate-900 sm:p-8" dangerouslySetInnerHTML={{ __html: renderedContent }} />}
 
-          {hasOpenFields && !signedAt ? <div className="mb-6 rounded-2xl border border-red-300/30 bg-red-300/10 p-5 text-red-100" role="alert"><p className="font-bold">המסמך עדיין כולל פרטים שלא מולאו</p><p className="mt-2 text-sm leading-relaxed">אין לחתום לפני שהשולח משלים את כל השדות ושולח קישור מעודכן.</p></div> : null}
+          {blocked === "open-fields" && !signedAt ? <div className="mb-6 rounded-2xl border border-red-300/30 bg-red-300/10 p-5 text-red-100" role="alert"><p className="font-bold">המסמך עדיין כולל פרטים שלא מולאו</p><p className="mt-2 text-sm leading-relaxed">אין לחתום לפני שהשולח משלים את כל השדות ושולח קישור מעודכן.</p></div> : null}
 
           {signedAt ? (
             <div className="rounded-2xl border border-green-400/25 bg-green-400/10 p-6 text-center">
@@ -57,13 +57,15 @@ export default async function SignPage({ params, searchParams }: {
               {signature ? <div className="mx-auto mt-4 max-w-sm rounded-xl bg-white p-3"><Image src={signature} alt={`החתימה של ${signerName}`} width={700} height={240} unoptimized className="h-auto w-full" /></div> : null}
               {isPdf && allComplete ? <a href={`/api/sign/${token}/pdf?download=1`} className="btn btn-primary mt-5 w-full sm:w-auto">הורדת המסמך החתום</a> : isPdf ? <p className="mt-4 text-sm text-green-100">המסמך ממתין כעת לחתימה של הצד הבא.</p> : <div className="mt-5"><PrintDocumentButton /></div>}
             </div>
+          ) : blocked === "archived" ? (
+            <p role="status" className="rounded-xl bg-white/5 p-4 text-silver">המסמך הועבר לארכיון והחתימה סגורה.</p>
           ) : (
             <form action={action} className="no-print space-y-5 border-t border-white/10 pt-7">
               {query.error ? <p className="rounded-xl bg-red-400/10 p-3 text-sm text-red-200">החתימה לא נשמרה. יש לבדוק שוב את המסמך המעודכן, לצייר חתימה תקינה ולאשר שקראת אותו.</p> : null}
               {signer ? <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4"><p className="text-sm font-bold text-white">{signer.name}</p><p className="mt-1 text-xs text-silver-muted">תעודת זהות: {signer.identityNumber}</p><input type="hidden" name="signerName" value={signer.name} /></div> : <label className="block text-sm font-semibold text-silver">שם מלא<input name="signerName" required defaultValue={signerName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label>}
               <div><span className="mb-2 block text-sm font-semibold text-silver">החתימה שלך ביד</span><HandSignaturePad /></div>
               <label className="flex items-start gap-3 rounded-xl bg-white/[0.04] p-4 text-sm leading-relaxed text-silver"><input name="approved" type="checkbox" required className="mt-1 h-4 w-4 accent-sky-400" /><span>קראתי את המסמך, בדקתי שהפרטים נכונים, ואני מאשר/ת להטמיע בו את החתימה שציירתי.</span></label>
-              <button className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={hasOpenFields}>{hasOpenFields ? "ממתין להשלמת פרטי המסמך" : "שמירת החתימה במסמך"}</button>
+              <button className="btn btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50" type="submit" disabled={blocked === "open-fields"}>{blocked === "open-fields" ? "ממתין להשלמת פרטי המסמך" : "שמירת החתימה במסמך"}</button>
             </form>
           )}
         </article>

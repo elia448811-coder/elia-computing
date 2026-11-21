@@ -2,7 +2,7 @@
 
 import { Resend } from "resend";
 import { changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
-import { createDocument, createPdfDocument, duplicateHtmlDocument, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
+import { createDocument, createPdfDocument, duplicateHtmlDocument, hasOpenDocumentFields, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
 import { saveCustomers, updateCustomer } from "@/lib/customers";
 import { clearWorkspaceDraft } from "@/lib/workspace-drafts";
 import { clearPdfDraft } from "@/lib/pdf-drafts";
@@ -49,7 +49,7 @@ export async function createDocumentAction(formData: FormData) {
   if (template !== "blank" && title === documentTemplates.blank.title) title = documentTemplates[template].title;
   if (!title || !recipientName || !content) redirect("/dashboard?error=missing#create");
   if (signers.some((signer) => !content.includes(`data-signer-id="${signer.id}"`))) redirect("/dashboard?error=signature-fields#create");
-  if (!allowOpenFields && /\[[^\]]{2,100}\]|_{4,}/.test(content.replace(/<[^>]+>/g, " ").replaceAll("[חתימת הלקוח]", ""))) redirect("/dashboard?error=open-fields#create");
+  if (!allowOpenFields && hasOpenDocumentFields(content)) redirect("/dashboard?error=open-fields#create");
   const document = await createDocument({ title, recipientName, recipientEmail, content, signers: signers.map((signer) => ({ ...signer, token: "" })), template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
   await saveCustomers(signers.map((signer) => ({ fullName: signer.name, identityNumber: signer.identityNumber, email: signer.email, phone: signer.phone })));
   try { await clearWorkspaceDraft(String(formData.get("draftRevision") ?? "") || null); } catch { /* Preserve a newer draft from another device. */ }
