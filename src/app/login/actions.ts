@@ -9,10 +9,12 @@ import {
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 export async function loginAction(formData: FormData) {
+  const reauthenticate = formData.get("reauth") === "1";
+  const loginUrl = reauthenticate ? "/login?reauth=1&error=" : "/login?error=";
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!username || username.length > 160 || !password || password.length > 256)
-    redirect("/login?error=invalid");
+    redirect(`${loginUrl}invalid`);
   const requestHeaders = await headers();
   const ip =
     requestHeaders.get("x-forwarded-for")?.split(",")[0]?.trim() ??
@@ -34,12 +36,12 @@ export async function loginAction(formData: FormData) {
       if (!verification.ok) failure = verification.locked ? "locked" : "totp";
       else {
         await recordSecurityLogin(requestHeaders.get("user-agent") ?? "", ip);
-        await createSession(verification.sessionVersion);
+        await createSession(verification.sessionVersion, Math.floor(Date.now() / 1000));
       }
     }
   } catch {
     failure = "unavailable";
   }
-  if (failure) redirect(`/login?error=${failure}`);
-  redirect("/dashboard#quotes");
+  if (failure) redirect(`${loginUrl}${failure}`);
+  redirect(reauthenticate ? "/dashboard#security" : "/dashboard#quotes");
 }

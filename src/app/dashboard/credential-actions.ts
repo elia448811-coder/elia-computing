@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import {
   createSession,
   hashIdentifier,
-  authenticatedVersion,
+  authenticatedSession,
+  hasRecentLogin,
   setLoginCredentials,
   validateNewPassword,
   verifyLoginTwoFactor,
@@ -12,9 +13,10 @@ export async function setCredentialsAction(
   _previous: { ok: boolean; message: string },
   formData: FormData,
 ) {
-  const version = await authenticatedVersion();
-  if (version === undefined)
-    return { ok: false, message: "פג תוקף ההתחברות. התחברו מחדש." };
+  const session = await authenticatedSession();
+  if (!session || !hasRecentLogin(session.loginTime))
+    return { ok: false, reauth: true, message: "יש לאמת שוב את זהותכם לפני שינוי פרטי הכניסה." };
+  const version = session.version;
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   if (!/^[A-Za-z0-9_.@-]{3,160}$/.test(username))

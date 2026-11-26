@@ -1,4 +1,6 @@
 "use client";
+import { DraftUnlockError } from "@/lib/local-draft-cipher";
+import { usePrivateDrafts } from "@/components/PrivateDraftStorage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPdfDocumentAction } from "@/app/dashboard/actions";
 import type { PDFDocumentProxy, RenderTask } from "pdfjs-dist";
@@ -6,11 +8,12 @@ import { SignerFields, blankSigner } from "@/components/SignerFields";
 import type { Customer } from "@/lib/customers";
 import type { SignatureField } from "@/lib/documents";
 import type { PdfDraftData, PdfDraftEnvelope } from "@/lib/pdf-draft-types";
-import { readLocalPdfDraft, writeLocalPdfDraft } from "@/lib/pdf-local-draft";
+import { readLocalPdfDraft, writeLocalPdfDraft, rememberPdfSubmission } from "@/lib/pdf-local-draft";
 import type { WorkspaceSigner } from "@/lib/workspace-types";
 
 const colors = ["#9f494e", "#6e59a5", "#37785d", "#96621e", "#326b88", "#8c4e7d"];
 export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] }) {
+  const cipher = usePrivateDrafts();
   const [pending, setPending] = useState(false);
   const paused = useRef(false);
   const [signers, setSigners] = useState<WorkspaceSigner[]>([{ id: "first-signer", label: "הלקוח", name: "", identityNumber: "", email: "", phone: "" }]);
@@ -24,6 +27,7 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
   const [error, setError] = useState("");
   const [status, setStatus] = useState("טוען טיוטה…");
   const [ready, setReady] = useState(false);
+  const [lockedDraft, setLockedDraft] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fieldSize, setFieldSize] = useState([0.3, 0.1]);
@@ -57,7 +61,12 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
     let cancelled = false;
     async function restore() {
       let local;
-      try { local = await readLocalPdfDraft(); } catch { /* Browser storage may be unavailable. */ }
+      try { local = await readLocalPdfDraft(cipher); } catch (error) {
+        if (error instanceof DraftUnlockError) {
+          if (!cancelled) setLockedDraft(true);
+          return;
+        }
+      }
       let data = local?.data, nextFile = local?.file;
       try {
         const response = await fetch("/api/dashboard/pdf-draft", { cache: "no-store" });
@@ -78,14 +87,14 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
     }
     void restore();
     return () => { cancelled = true; };
-  }, [loadPdf]);
+  }, [loadPdf, cipher]);
 
   useEffect(() => () => { void pdf?.loadingTask.destroy(); }, [pdf]);
 
   useEffect(() => {
     if (!ready || !file || conflict || pending) return;
     const data: PdfDraftData = { title, fileName: file.name, signers, fields, step, updatedAt: new Date().toISOString() };
-    void writeLocalPdfDraft({ data, file, revision: revisionRef.current }).catch(() => {});
+    void writeLocalPdfDraft({ data, file, revision: revisionRef.current }, cipher).catch(() => {});
     const timer = setTimeout(() => {
       queue.current = queue.current.then(async () => {
         if (conflict || paused.current) return;
@@ -98,13 +107,15 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
           if (!response.ok) throw new Error("save");
           const saved = await response.json() as PdfDraftEnvelope;
           revisionRef.current = saved.revision; setRevision(saved.revision); uploadedFile.current = file;
-          await writeLocalPdfDraft({ data, file, revision: saved.revision }).catch(() => {});
-          setStatus("טיוטת ה־PDF נשמרה בענן ובמכשיר");
+          try {
+            await writeLocalPdfDraft({ data, file, revision: saved.revision }, cipher);
+            setStatus("טיוטת ה־PDF נשמרה בענן ובמכשיר");
+          } catch { setStatus("טיוטת ה־PDF נשמרה בענן. השמירה במכשיר אינה זמינה."); }
         } catch { setStatus("השמירה בענן לא הצליחה. נשמר עותק במכשיר כשאפשר."); }
       });
     }, 1000);
     return () => clearTimeout(timer);
-  }, [ready, file, title, signers, fields, step, conflict, pending]);
+  }, [ready, file, title, signers, fields, step, conflict, pending, cipher]);
 
   useEffect(() => {
     if (!pdf || !canvasRef.current || !stageRef.current || step < 3) return;
@@ -143,8 +154,9 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
     const x = Math.min(1 - width, Math.max(0, (event.clientX - bounds.left) / bounds.width - width / 2)), y = Math.min(1 - height, Math.max(0, (event.clientY - bounds.top) / bounds.height - height / 2));
     setFields((current) => [...current.filter((field) => field.signerId !== activeSigner), { id: `field-${activeSigner}`, signerId: activeSigner, page, x, y, width, height }]);
   }
+  if (lockedDraft) return <p role="alert" className="p-6 text-silver">לא ניתן לפתוח כרגע את הטיוטה המוצפנת במכשיר. העותק שלך נשמר. <button type="button" className="underline" onClick={() => window.location.reload()}>ניסיון נוסף</button></p>;
   if (!ready) return <p className="p-6 text-silver">טוען טיוטת PDF…</p>;
-  return <form onSubmit={(event) => { if (step !== 4) event.preventDefault(); }} action={async (formData) => { if (!file) { setError("יש לבחור קובץ PDF."); return; } paused.current = true; setPending(true); await queue.current; formData.set("pdfFile", file); formData.set("pdfDraftRevision", revisionRef.current ?? ""); try { await createPdfDocumentAction(formData); } finally { paused.current = false; setPending(false); } }} className="space-y-5">
+  return <form onSubmit={(event) => { if (step !== 4) event.preventDefault(); }} action={async (formData) => { if (!file) { setError("יש לבחור קובץ PDF."); return; } paused.current = true; setPending(true); await queue.current; formData.set("draftSubmission", await rememberPdfSubmission()); formData.set("pdfFile", file); formData.set("pdfDraftRevision", revisionRef.current ?? ""); try { await createPdfDocumentAction(formData); } finally { paused.current = false; setPending(false); } }} className="space-y-5">
     <p className="text-sm text-silver" role="status">{status}</p>{conflict ? <button type="button" className="btn btn-secondary" onClick={() => location.reload()}>טעינת הטיוטה מהענן</button> : null}
     <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">{["בחירת PDF", "לקוחות וחותמים", "מיקום חתימות", "בדיקה ושמירה"].map((label, index) => <li key={label}><button type="button" aria-current={step === index + 1 ? "step" : undefined} className={`w-full rounded-xl border p-3 text-right text-sm ${step === index + 1 ? "border-electric bg-electric/15 text-white" : "border-white/10 text-silver"}`} onClick={() => go(index + 1)}>{index + 1}. {label}</button></li>)}</ol>
     {error ? <p role="alert" className="rounded-xl bg-red-300/10 p-3 text-sm text-red-100">{error}</p> : null}

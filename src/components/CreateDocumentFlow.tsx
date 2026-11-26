@@ -1,4 +1,7 @@
 "use client";
+import { rememberSubmission, textStamp } from "@/lib/draft-submission";
+import { DraftUnlockError } from "@/lib/local-draft-cipher";
+import { usePrivateDrafts } from "@/components/PrivateDraftStorage";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createDocumentAction } from "@/app/dashboard/actions";
@@ -13,8 +16,10 @@ type DraftEnvelope = { data: WorkspaceDraft; revision: string | null };
 function initialEditor(): EditorDraft { return { title: documentTemplates.blank.title, content: documentTemplates.blank.html, template: "blank", pageOrientation: "portrait", pageHeader: "", pageFooter: "", showPageNumbers: true, fontFamily: "Heebo", lineHeight: "1.75" }; }
 
 export function CreateDocumentFlow({ customers, customer, error }: { customers: Customer[]; customer?: Customer; error?: string }) {
+  const cipher = usePrivateDrafts();
   const [draft, setDraft] = useState<WorkspaceDraft>(() => ({ version: 1, updatedAt: "", signers: [{ id: "initial-signer", label: "הלקוח", name: "", identityNumber: "", email: "", phone: "" }], editor: initialEditor(), step: 1 }));
   const [ready, setReady] = useState(false);
+  const [lockedDraft, setLockedDraft] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
   const [status, setStatus] = useState("טוען טיוטה…");
   const [conflict, setConflict] = useState(false);
@@ -23,6 +28,7 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
   const revisionRef = useRef<string | null>(null);
   const latest = useRef(draft);
   const savedJson = useRef("");
+  const legacyStamp = useRef<string | null>(null);
   const queue = useRef<Promise<boolean>>(Promise.resolve(true));
   const paused = useRef(false);
   const [editorInitial, setEditorInitial] = useState(initialEditor);
@@ -33,12 +39,18 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
     async function load() {
       let local: DraftEnvelope | null = null;
       try {
-        local = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? "null");
+        local = JSON.parse(await cipher.readText(LOCAL_KEY) ?? "null");
         if (!local) {
-          const legacy = JSON.parse(localStorage.getItem("elia-document-draft:new-document") ?? "null");
+          const legacy = JSON.parse(await cipher.readText("elia-document-draft:new-document") ?? "null");
+          if (legacy?.content && legacy?.title) legacyStamp.current = textStamp("elia-document-draft:new-document");
           if (legacy?.content && legacy?.title) local = { revision: null, data: { version: 1, updatedAt: legacy.savedAt ?? new Date().toISOString(), step: 2, signers: [blankSigner()], editor: { ...initialEditor(), ...legacy } } };
         }
-      } catch { /* Empty or unavailable local storage. */ }
+      } catch (error) {
+        if (error instanceof DraftUnlockError) {
+          if (!cancelled) setLockedDraft(true);
+          return;
+        }
+      }
       let chosen = local;
       try {
         const response = await fetch("/api/dashboard/draft", { cache: "no-store" });
@@ -60,7 +72,7 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
     }
     void load();
     return () => { cancelled = true; };
-  }, [customer]);
+  }, [customer, cipher]);
 
   const persist = useCallback(() => {
     queue.current = queue.current.then(async () => {
@@ -69,7 +81,7 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
       if (paused.current) return false;
       if (savedJson.current === json) return true;
       setStatus("שומר טיוטה…");
-      try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ data, revision: revisionRef.current })); } catch { setStatus("אין מקום לשמירה במכשיר. מנסה לשמור בענן…"); }
+      try { await cipher.writeText(LOCAL_KEY, JSON.stringify({ data, revision: revisionRef.current })); } catch { setStatus("אין מקום לשמירה במכשיר. מנסה לשמור בענן…"); }
       try {
         const response = await fetch("/api/dashboard/draft", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data, revision: revisionRef.current }) });
         if (response.status === 409) { paused.current = true; setConflict(true); setStatus("קיימת טיוטה חדשה ממכשיר אחר. העותק המקומי נשמר."); return false; }
@@ -77,13 +89,17 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
         const saved = await response.json() as DraftEnvelope;
         revisionRef.current = saved.revision;
         savedJson.current = json;
-        try { localStorage.setItem(LOCAL_KEY, JSON.stringify({ data, revision: saved.revision })); } catch { /* Cloud copy succeeded. */ }
-        setStatus(`נשמר בענן ובמכשיר · ${new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}`);
+        if (legacyStamp.current && textStamp("elia-document-draft:new-document") === legacyStamp.current) localStorage.removeItem("elia-document-draft:new-document");
+        legacyStamp.current = null;
+        try {
+          await cipher.writeText(LOCAL_KEY, JSON.stringify({ data, revision: saved.revision }));
+          setStatus(`נשמר בענן ובמכשיר · ${new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}`);
+        } catch { setStatus("הטיוטה נשמרה בענן. השמירה במכשיר אינה זמינה."); }
         return true;
       } catch { setStatus("השמירה בענן לא הצליחה. העותק במכשיר נשמר כשאפשר."); return false; }
     });
     return queue.current;
-  }, []);
+  }, [cipher]);
   useEffect(() => {
     if (!ready || submitting) return;
     const timer = setTimeout(() => void persist(), 900);
@@ -96,6 +112,7 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
     setMessage("");
     setDraft((current) => ({ ...current, step, updatedAt: new Date().toISOString() }));
   }
+  if (lockedDraft) return <p role="alert" className="p-6 text-silver">לא ניתן לפתוח כרגע את הטיוטה המוצפנת במכשיר. העותק שלך נשמר. <button type="button" className="underline" onClick={() => window.location.reload()}>ניסיון נוסף</button></p>;
   if (!ready) return <p className="glass rounded-2xl p-8 text-silver" role="status">טוען טיוטה…</p>;
   const template = draft.editor.template in documentTemplates ? draft.editor.template as DocumentTemplateKey : "blank";
   return <section className="glass rounded-2xl p-4 sm:p-7">
@@ -108,6 +125,7 @@ export function CreateDocumentFlow({ customers, customer, error }: { customers: 
       await persist();
       if (paused.current) { setSubmitting(false); return; }
       paused.current = true;
+      formData.set("draftSubmission", rememberSubmission(LOCAL_KEY, textStamp(LOCAL_KEY)));
       formData.set("draftRevision", revisionRef.current ?? "");
       try { await createDocumentAction(formData); }
       finally { paused.current = false; setSubmitting(false); }

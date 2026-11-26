@@ -1,3 +1,4 @@
+import { PrivateDraftStorage } from "@/components/PrivateDraftStorage";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardWorkspace } from "@/components/DashboardWorkspace";
@@ -8,7 +9,7 @@ import { listCustomers } from "@/lib/customers";
 import { signatureProgress } from "@/lib/document-status";
 
 export const metadata: Metadata = { title: "ניהול העסק והצעות מחיר", robots: { index: false } };
-type DashboardQuery = { created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
+type DashboardQuery = { draftReceipt?: string; created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardQuery> }) {
   if (!(await isAuthenticated())) redirect("/login");
@@ -17,5 +18,5 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const completed = activeDocuments.filter((document) => signatureProgress(document).complete).length;
   const libraryDocuments = documents.map((document) => ({ ...document, signature: undefined, signerIpHash: undefined, signerUserAgent: undefined, signers: document.signers?.map((signer) => ({ ...signer, signature: undefined, signerIpHash: undefined, signerUserAgent: undefined })) }));
   const signers = activeDocuments.reduce((sum, document) => sum + (document.signers?.length ?? (document.recipientName ? 1 : 0)), 0);
-  return <main id="main" className="min-h-screen px-4 pb-20 pt-24 sm:pt-28"><DashboardWorkspace key={`${query.created ?? ""}-${query.pdfCreated ?? ""}`} documents={libraryDocuments} customers={customers} siteUrl={siteConfig.url} twoFactorEnabled={twoFactor.enabled} recoveryCodesRemaining={twoFactor.recoveryCodesRemaining} securityActivity={securityActivity} stats={{ active: activeDocuments.length, waiting: activeDocuments.length - completed, completed, signers }} query={query} /></main>;
+  return <main id="main" className="min-h-screen px-4 pb-20 pt-24 sm:pt-28"><PrivateDraftStorage><DashboardWorkspace key={`${query.created ?? ""}-${query.pdfCreated ?? ""}`} documents={libraryDocuments} customers={customers} siteUrl={siteConfig.url} twoFactorEnabled={twoFactor.enabled} recoveryCodesRemaining={twoFactor.recoveryCodesRemaining} securityActivity={securityActivity} stats={{ active: activeDocuments.length, waiting: activeDocuments.length - completed, completed, signers }} query={query} /></PrivateDraftStorage></main>;
 }

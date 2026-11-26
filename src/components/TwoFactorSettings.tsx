@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { beginTwoFactorAction, cancelTwoFactorAction, confirmTwoFactorAction, disableTwoFactorAction } from "@/app/dashboard/two-factor-actions";
 
 type Enrollment = { qrDataUrl: string; secretKey: string };
 
 export function TwoFactorSettings({ initialEnabled, initialRecoveryCodesRemaining = 0 }: { initialEnabled: boolean; initialRecoveryCodesRemaining?: number }) {
+  const router = useRouter();
   const [enabled, setEnabled] = useState(initialEnabled);
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [code, setCode] = useState("");
@@ -22,6 +24,7 @@ export function TwoFactorSettings({ initialEnabled, initialRecoveryCodesRemainin
     setBusy(true); setError(""); setMessage("");
     const result = await beginTwoFactorAction();
     if (result.ok) setEnrollment({ qrDataUrl: result.qrDataUrl, secretKey: result.secretKey });
+    else if (result.error === "reauthenticate") router.push("/login?reauth=1");
     else setError("לא הצלחנו להתחיל את ההגדרה. נסו שוב.");
     setBusy(false);
   }

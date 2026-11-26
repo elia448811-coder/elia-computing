@@ -10,7 +10,7 @@ function Submit() {
     </button>
   );
 }
-export function PasswordLoginForm({ error }: { error?: string }) {
+export function PasswordLoginForm({ error, reauthenticate }: { error?: string; reauthenticate: boolean }) {
   const [visible, setVisible] = useState(false);
   const messages: Record<string, string> = {
     invalid: "שם המשתמש או הסיסמה אינם נכונים.",
@@ -20,6 +20,7 @@ export function PasswordLoginForm({ error }: { error?: string }) {
   };
   return (
     <form action={loginAction} className="q-login-form">
+      {reauthenticate && <input type="hidden" name="reauth" value="1" />}
       <label className="q-label">
         שם משתמש
         <input

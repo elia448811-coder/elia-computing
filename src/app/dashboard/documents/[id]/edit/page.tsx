@@ -1,3 +1,4 @@
+import { PrivateDraftStorage } from "@/components/PrivateDraftStorage";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -11,7 +12,7 @@ export const metadata: Metadata = { title: "עריכת מסמך", robots: { inde
 
 type Props = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ saved?: string; error?: string }>;
+  searchParams: Promise<{ saved?: string; draftReceipt?: string; error?: string }>;
 };
 
 export default async function EditDocumentPage({ params, searchParams }: Props) {
@@ -36,7 +37,7 @@ export default async function EditDocumentPage({ params, searchParams }: Props) 
         {query.error ? <p className="mb-5 rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-red-100">לא ניתן לשמור. ודאו שכל השדות מלאים ושהמסמך טרם נחתם.</p> : null}
         <form action={action} className="glass space-y-5 rounded-[var(--radius-xl)] p-5 sm:p-8">
           <div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm font-semibold text-silver">שם הלקוח / החותם<input name="recipientName" required readOnly={recipientLocked} defaultValue={primarySigner?.name ?? document.recipientName} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label><label className="block text-sm font-semibold text-silver">אימייל<input name="recipientEmail" type="email" readOnly={recipientLocked} defaultValue={primarySigner?.email ?? document.recipientEmail} className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-white" /></label></div>
-          <RichDocumentEditor savedSuccessfully={Boolean(query.saved)} initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} initialOrientation={document.pageOrientation ?? "portrait"} initialPageHeader={document.pageHeader ?? ""} initialPageFooter={document.pageFooter ?? ""} initialShowPageNumbers={document.showPageNumbers !== false} initialFontFamily={document.fontFamily ?? "Heebo"} initialLineHeight={document.lineHeight ?? "1.75"} draftKey={`document-${document.id}`} />
+          <PrivateDraftStorage><RichDocumentEditor draftReceipt={query.saved === "1" ? query.draftReceipt : undefined} initialTitle={document.title} initialContent={document.content ?? ""} initialTemplate={template} initialOrientation={document.pageOrientation ?? "portrait"} initialPageHeader={document.pageHeader ?? ""} initialPageFooter={document.pageFooter ?? ""} initialShowPageNumbers={document.showPageNumbers !== false} initialFontFamily={document.fontFamily ?? "Heebo"} initialLineHeight={document.lineHeight ?? "1.75"} draftKey={`document-${document.id}`} /></PrivateDraftStorage>
           <div className="sticky bottom-3 flex flex-wrap gap-3 rounded-2xl border border-white/10 bg-[#07111f]/95 p-3 shadow-2xl backdrop-blur-xl"><button type="submit" className="btn btn-primary flex-1">שמירת כל השינויים</button><Link href="/dashboard#documents" className="btn btn-secondary">ביטול</Link></div>
         </form>
       </div>

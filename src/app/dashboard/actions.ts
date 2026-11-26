@@ -13,6 +13,11 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+function draftReceipt(form: FormData) {
+  const value = form.get("draftSubmission");
+  return typeof value === "string" && /^[a-f0-9-]{36}$/.test(value) ? `&draftReceipt=${value}` : "";
+}
+
 export async function logoutAction() {
   await clearSession();
   redirect("/login");
@@ -53,9 +58,10 @@ export async function createDocumentAction(formData: FormData) {
   if (!allowOpenFields && hasOpenDocumentFields(content)) redirect("/dashboard?error=open-fields#create");
   const document = await createDocument({ title, recipientName, recipientEmail, content, signers: signers.map((signer) => ({ ...signer, token: "" })), template, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
   await saveCustomers(signers.map((signer) => ({ fullName: signer.name, identityNumber: signer.identityNumber, email: signer.email, phone: signer.phone })));
-  try { await clearWorkspaceDraft(String(formData.get("draftRevision") ?? "") || null); } catch { /* Preserve a newer draft from another device. */ }
+  let receipt = "";
+  try { await clearWorkspaceDraft(String(formData.get("draftRevision") ?? "") || null); receipt = draftReceipt(formData); } catch { /* Preserve a newer draft from another device. */ }
   revalidatePath("/dashboard");
-  redirect(`/dashboard?created=${document.id}#documents`);
+  redirect(`/dashboard?created=${document.id}${receipt}#documents`);
 }
 
 export async function createPdfDocumentAction(formData: FormData) {
@@ -96,8 +102,9 @@ export async function createPdfDocumentAction(formData: FormData) {
     redirect(`/dashboard?pdfError=${reason}#pdf`);
   }
   revalidatePath("/dashboard");
-  try { await clearPdfDraft(String(formData.get("pdfDraftRevision") ?? "") || null); } catch { /* Keep a newer PDF draft from another device. */ }
-  redirect(`/dashboard?pdfCreated=${documentId}#documents`);
+  let receipt = "";
+  try { await clearPdfDraft(String(formData.get("pdfDraftRevision") ?? "") || null); receipt = draftReceipt(formData); } catch { /* Keep a newer PDF draft from another device. */ }
+  redirect(`/dashboard?pdfCreated=${documentId}${receipt}#documents`);
 }
 
 export async function updateDocumentAction(id: string, formData: FormData) {
@@ -121,7 +128,7 @@ export async function updateDocumentAction(id: string, formData: FormData) {
     redirect(`/dashboard/documents/${id}/edit?error=locked`);
   }
   revalidatePath("/dashboard");
-  redirect(`/dashboard/documents/${id}/edit?saved=1`);
+  redirect(`/dashboard/documents/${id}/edit?saved=1${draftReceipt(formData)}`);
 }
 
 export async function duplicateDocumentAction(id: string) {

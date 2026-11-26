@@ -13,12 +13,12 @@ async function png() {
   const bytes = await sharp({ create: { width: 64, height: 24, channels: 4, background: { r: 20, g: 30, b: 40, alpha: 1 } } }).png().toBuffer();
   return `data:image/png;base64,${bytes.toString('base64')}`;
 }
-function authenticatorCode(secret) {
+function authenticatorCode(secret, offset = 0) {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   const bits = [...secret].map((ch) => alphabet.indexOf(ch).toString(2).padStart(5, '0')).join('');
   const bytes = Buffer.from(bits.match(/.{8}/g).map((byte) => parseInt(byte, 2)));
   const counter = Buffer.alloc(8);
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000)));
+  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30000) + offset));
   const digest = crypto.createHmac('sha1', bytes).update(counter).digest();
   return String((digest.readUInt32BE(digest[19] & 15) & 0x7fffffff) % 1000000).padStart(6, '0');
 }
@@ -80,34 +80,34 @@ test('legacy single-recipient documents still accept a reviewed signature', asyn
 
 test('new authenticator enrollment works and enabled factors cannot be replaced', async () => {
   const db = new MemoryDatabase(), { auth } = modules(db);
-  const enrollment = await auth.beginTwoFactorEnrollment();
-  const confirmed = await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey));
+  const enrollment = await auth.beginTwoFactorEnrollment('fixture-session', 1);
+  const confirmed = await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey), 'fixture-session', 1);
   assert.equal(confirmed.ok, true);
   assert.equal(confirmed.recoveryCodes.length, 8);
   const before = structuredClone(db.records.get('system/auth'));
-  await assert.rejects(auth.beginTwoFactorEnrollment(), /two-factor-already-enabled/);
-  assert.equal((await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey))).ok, false);
+  await assert.rejects(auth.beginTwoFactorEnrollment('fixture-session', 2), /two-factor-already-enabled/);
+  assert.equal((await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey), 'fixture-session', 1)).ok, false);
   assert.deepEqual(db.records.get('system/auth'), before);
 });
 
 test('pending enrollment is invalid after a security session-version change', async () => {
   const db = new MemoryDatabase(), { auth } = modules(db);
-  const enrollment = await auth.beginTwoFactorEnrollment();
+  const enrollment = await auth.beginTwoFactorEnrollment('fixture-session', 1);
   db.records.get('system/auth').sessionVersion = 2;
-  assert.equal((await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey))).ok, false);
+  assert.equal((await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey), 'fixture-session', 1)).ok, false);
   assert.notEqual(db.records.get('system/auth').totpEnabled, true);
 });
 
 test('current-factor proof allows removal and management lock state is enforced', async () => {
   const db = new MemoryDatabase(), { auth } = modules(db);
-  const enrollment = await auth.beginTwoFactorEnrollment();
-  await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey));
+  const enrollment = await auth.beginTwoFactorEnrollment('fixture-session', 1);
+  await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey), 'fixture-session', 1);
   const state = db.records.get('system/auth');
   state.totpManagementFailures = 5;
   state.totpManagementExpiresAt = Date.now() + 60000;
-  assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey)), false);
+  assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey, 1)), false);
   state.totpManagementExpiresAt = Date.now() - 1;
-  assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey)), true);
+  assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey, 1)), true);
   assert.equal(db.records.get('system/auth').totpEnabled, false);
 });
 
@@ -191,9 +191,9 @@ test('logout revokes only the current session, including existing cookie format'
 
 test('login codes are used once, stale versions and missing enabled factors fail closed', async () => {
   const db = new MemoryDatabase(), { auth } = modules(db);
-  const enrollment = await auth.beginTwoFactorEnrollment();
+  const enrollment = await auth.beginTwoFactorEnrollment('fixture-session', 1);
   const code = authenticatorCode(enrollment.secretKey);
-  const result = await auth.confirmTwoFactorEnrollment(code);
+  const result = await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey, -1), 'fixture-session', 1);
   assert.equal((await auth.verifyLoginTwoFactor(code, 'fixture', 1)).ok, false);
   assert.equal((await auth.verifyLoginTwoFactor(code, 'fixture', result.sessionVersion)).ok, true);
   assert.equal((await auth.verifyLoginTwoFactor(code, 'other')).ok, false);
@@ -221,4 +221,54 @@ test('generated signer fields expose the current recipient identity only', () =>
   assert.ok(html.includes('111111111'));
   assert.ok(!html.includes('222222222'));
   assert.ok(html.includes('Fixture two'));
+});
+
+test('authenticator enrollment belongs to the initiating session and shares replay protection with removal', async () => {
+  const db = new MemoryDatabase(), { auth } = modules(db);
+  const enrollment = await auth.beginTwoFactorEnrollment('first', 1);
+  const code = authenticatorCode(enrollment.secretKey);
+  assert.equal((await auth.confirmTwoFactorEnrollment(code, 'other', 1)).ok, false);
+  await auth.cancelTwoFactorEnrollment('other', 1);
+  await assert.rejects(auth.beginTwoFactorEnrollment('other', 1), /enrollment-in-progress/);
+  assert.equal((await auth.confirmTwoFactorEnrollment(code, 'first', 1)).ok, true);
+  assert.equal((await auth.verifyLoginTwoFactor(code, 'fixture')).ok, false);
+  assert.equal(await auth.disableTwoFactor(code, 2), false);
+  const next = authenticatorCode(enrollment.secretKey, 1);
+  assert.equal((await auth.verifyLoginTwoFactor(next, 'fixture')).ok, true);
+  assert.equal(await auth.disableTwoFactor(next, 2), false);
+});
+
+test('recent proof is distinct from a renewed session and expires after five minutes', async () => {
+  const { auth } = modules(new MemoryDatabase());
+  const now = Math.floor(Date.now() / 1000);
+  await auth.createSession(1, now);
+  assert.equal(auth.hasRecentLogin((await auth.authenticatedSession()).loginTime), true);
+  assert.equal(auth.hasRecentLogin(now - 300), false);
+  await auth.createSession(1);
+  assert.equal(auth.hasRecentLogin((await auth.authenticatedSession()).loginTime), false);
+});
+
+test('a Google sign-in can be redeemed once and must be fresh and current', async () => {
+  const db = new MemoryDatabase(), { auth } = modules(db);
+  const now = Math.floor(Date.now() / 1000);
+  assert.equal(await auth.redeemGoogleLogin(now, 2), false);
+  assert.equal(await auth.redeemGoogleLogin(now - 301, 1), false);
+  assert.equal(await auth.redeemGoogleLogin(now, 1), true);
+  assert.equal(await auth.redeemGoogleLogin(now, 1), false);
+});
+
+test('the byte reader preserves multipart data and enforces the limit without a length header', async () => {
+  const { load } = modules(new MemoryDatabase());
+  const { readLimitedBytes } = load('src/lib/request-body.ts');
+  const makeRequest = () => new Request('https://example.test/', { method: 'POST', body: new Uint8Array([0, 255, 13, 10]) });
+  assert.deepEqual([...await readLimitedBytes(makeRequest(), 4)], [0, 255, 13, 10]);
+  assert.equal(await readLimitedBytes(makeRequest(), 3), null);
+  const form = new FormData();
+  form.set('data', 'שלום');
+  form.set('file', new Blob(['example']), 'fixture.pdf');
+  const request = new Request('https://example.test/', { method: 'POST', body: form });
+  const bytes = await readLimitedBytes(request, 2000);
+  const restored = await new Response(bytes, { headers: request.headers }).formData();
+  assert.equal(restored.get('data'), 'שלום');
+  assert.equal(await restored.get('file').text(), 'example');
 });

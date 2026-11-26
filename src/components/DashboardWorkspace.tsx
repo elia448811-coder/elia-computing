@@ -2,6 +2,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
+import { clearSubmittedText } from "@/lib/draft-submission";
 import { logoutAction } from "@/app/dashboard/actions";
 import { DocumentLibrary, type LibraryFilter } from "@/components/DocumentLibrary";
 import { CustomerLibrary } from "@/components/CustomerLibrary";
@@ -15,7 +16,7 @@ import type { Customer } from "@/lib/customers";
 import type { SignatureDocument } from "@/lib/documents";
 
 type Tab = "quotes" | "overview" | "create" | "pdf" | "documents" | "customers" | "security";
-type Query = { created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
+type Query = { draftReceipt?: string; created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
 const tabs: Array<[Tab, string]> = [["quotes", "הצעות מחיר"], ["overview", "סקירה"], ["create", "מסמך חדש"], ["pdf", "העלאת PDF"], ["documents", "ספריית מסמכים"], ["customers", "לקוחות"], ["security", "אבטחת חשבון"]];
 const MultiSignaturePdfBuilder = dynamic(() => import("@/components/MultiSignaturePdfBuilder").then((module) => module.MultiSignaturePdfBuilder), { ssr: false, loading: () => <p className="p-8 text-silver">טוען את כלי ה־PDF…</p> });
 function tabFromHash(): Tab { const value = window.location.hash.replace("#", "") as Tab; return tabs.some(([tab]) => tab === value) ? value : "quotes"; }
@@ -34,11 +35,11 @@ export function DashboardWorkspace({ documents, customers, siteUrl, twoFactorEna
   useEffect(() => {
     const sync = () => { const tab = tabFromHash(); setActiveTab(tab); if (tab === "create") setCreationVisited(true); };
     sync(); window.addEventListener("hashchange", sync);
-    if (query.pdfCreated) void import("@/lib/pdf-local-draft").then((module) => module.writeLocalPdfDraft(null)).catch(() => {});
-    if (query.created) { try { localStorage.removeItem("elia-workspace-draft-v1"); localStorage.removeItem("elia-document-draft:new-document"); } catch { /* Storage is optional. */ } }
-    if (query.created || query.pdfCreated) { const url = new URL(window.location.href); url.searchParams.delete("created"); url.searchParams.delete("pdfCreated"); window.history.replaceState(null, "", url); window.scrollTo({ top: 0 }); }
+    if (query.pdfCreated && query.draftReceipt) void import("@/lib/pdf-local-draft").then((module) => module.clearSubmittedPdf(query.draftReceipt)).catch(() => {});
+    if (query.created) clearSubmittedText("elia-workspace-draft-v1", query.draftReceipt);
+    if (query.created || query.pdfCreated) { const url = new URL(window.location.href); url.searchParams.delete("created"); url.searchParams.delete("pdfCreated"); url.searchParams.delete("draftReceipt"); window.history.replaceState(null, "", url); window.scrollTo({ top: 0 }); }
     return () => window.removeEventListener("hashchange", sync);
-  }, [query.created, query.pdfCreated]);
+  }, [query.created, query.pdfCreated, query.draftReceipt]);
   function open(tab: Tab, filter?: LibraryFilter) { if (filter) { setLibraryFilter(filter); setDocumentId(""); } if (tab === "create") setCreationVisited(true); setActiveTab(tab); window.history.replaceState(null, "", `#${tab}`); window.scrollTo({ top: 0, behavior: "smooth" }); }
   function openDocument(id: string) { setDocumentId(id); setLibraryFilter("all"); open("documents"); }
   function createForCustomer(selected: Customer) { setCustomer(selected); setCreateVersion((value) => value + 1); open("create"); }
