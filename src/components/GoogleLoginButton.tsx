@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getApp, getApps, initializeApp } from "@firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "@firebase/auth";
+import { getAuth, GoogleAuthProvider, inMemoryPersistence, setPersistence, signInWithPopup, signOut } from "@firebase/auth";
 
 const allowedEmail = "elia448811@gmail.com";
 const firebaseConfig = {
@@ -57,6 +57,7 @@ export function GoogleLoginButton() {
     setError("");
     const auth = firebaseAuth();
     try {
+      await setPersistence(auth, inMemoryPersistence);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account", login_hint: allowedEmail });
       const result = await signInWithPopup(auth, provider);
@@ -65,10 +66,9 @@ export function GoogleLoginButton() {
         setError("הגישה מותרת רק לחשבון Google של אליה.");
         return;
       }
-      if (!(await completeLogin(await result.user.getIdToken()))) {
-        if (pendingIdToken) await signOut(auth);
-        return;
-      }
+      const idToken = await result.user.getIdToken();
+      await signOut(auth);
+      await completeLogin(idToken);
     } catch (reason) {
       const code = reason && typeof reason === "object" && "code" in reason ? String(reason.code) : "";
       if (code !== "auth/popup-closed-by-user") setError("הכניסה עם Google לא הושלמה. נסו שוב.");

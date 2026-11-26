@@ -54,7 +54,7 @@ export class MemoryDatabase {
   }
 }
 
-export function modules(db) {
+export function modules(db, cookieJar = new Map()) {
   const cache = new Map();
   function load(relative) {
     const filename = path.join(testDirectory, '..', relative);
@@ -66,7 +66,7 @@ export function modules(db) {
     loaded.require = (name) => {
       if (name === 'server-only') return {};
       if (name === '@/lib/firebase-admin') return { getDatabase: () => db };
-      if (name === 'next/headers') return { cookies: async () => ({ set() {}, get() {}, delete() {} }) };
+      if (name === 'next/headers') return { cookies: async () => ({ set: (key, value) => cookieJar.set(key, { value }), get: (key) => cookieJar.get(key), delete: (key) => cookieJar.delete(key) }) };
       if (name.startsWith('@/data/')) return load(`src/data/${name.slice('@/data/'.length)}.ts`);
       if (name.startsWith('@/lib/')) return load(`src/lib/${name.slice('@/lib/'.length)}.ts`);
       return ordinaryRequire(name);

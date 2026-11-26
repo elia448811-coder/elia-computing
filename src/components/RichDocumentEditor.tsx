@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
+import { cleanHtml, quickFieldHtml } from "@/lib/document-html";
 import type { EditorDraft } from "@/lib/workspace-types";
 
 const quickFields = ["[שם הלקוח]", "[ת\"ז]", "[שם העסק]", "[שם הפרויקט]", "[תאריך]", "[סכום]", "[מספר עוסק]", "[חתימת הלקוח]"];
@@ -52,10 +53,10 @@ function decorateQuickFields(html: string) {
     return `__QUICK_FIELD_${protectedFields.length - 1}__`;
   });
   const decorated = quickFields.reduce(
-    (result, field) => result.split(field).join(`<span class="quick-field-token" contenteditable="true" data-field="${field}">${field}</span>`),
+    (result, field) => result.split(field).join(quickFieldHtml(field, field)),
     protectedHtml,
   );
-  return protectedFields.reduce((result, field, index) => result.replace(`__QUICK_FIELD_${index}__`, field), decorated);
+  return cleanHtml(protectedFields.reduce((result, field, index) => result.replace(`__QUICK_FIELD_${index}__`, () => field), decorated));
 }
 
 function clampTableSize(value: string | null) {
@@ -177,7 +178,17 @@ export function RichDocumentEditor({
 
   function addLink() {
     const url = window.prompt("הדביקו כתובת קישור מלאה");
-    if (url) command("createLink", url);
+    if (!url) return;
+    try {
+      const link = new URL(url);
+      if (["https:", "http:", "mailto:", "tel:"].includes(link.protocol)) command("createLink", link.href);
+    } catch { /* A complete URL is required. */ }
+  }
+
+  function insertTransferredContent(data: DataTransfer) {
+    const html = data.getData("text/html");
+    if (html) command("insertHTML", cleanHtml(html));
+    else command("insertText", data.getData("text/plain"));
   }
 
   function addTable() {
@@ -190,7 +201,7 @@ export function RichDocumentEditor({
   }
 
   function insertQuickField(field: string) {
-    command("insertHTML", `<span class="quick-field-token" contenteditable="true" data-field="${field}">${fieldValues[field] || field}</span>&nbsp;`);
+    command("insertHTML", quickFieldHtml(field, fieldValues[field] || field) + "&nbsp;");
   }
 
   function insertSignatureField(signer: { id: string; label: string; name: string }) {
@@ -453,7 +464,18 @@ export function RichDocumentEditor({
               </div>
             </div>
             <div className="overflow-auto bg-[radial-gradient(circle_at_50%_0%,rgba(69,200,255,.08),transparent_45%)] p-3 sm:p-6 lg:p-8">
-              <div className={`relative mx-auto w-full ${paperWidthClass}`} style={{ zoom: zoom / 100 } as CSSProperties}>{pageGuides}{pageHeader ? <div className="pointer-events-none absolute inset-x-12 top-5 z-20 border-b border-slate-200 pb-2 text-center text-xs text-slate-500">{pageHeader}</div> : null}<div ref={editorRef} data-orientation={pageOrientation} contentEditable suppressContentEditableWarning onInput={sync} dangerouslySetInnerHTML={{ __html: content }} style={{ colorScheme: "only light", aspectRatio: paperAspectRatio, fontFamily, lineHeight }} className="document-paper rich-editor relative w-full overflow-hidden rounded-md border border-slate-200 bg-white px-6 py-12 text-right text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,.38)] focus:outline-none focus:ring-2 focus:ring-electric sm:px-12 sm:py-16" />{(pageFooter || showPageNumbers) ? <div className="pointer-events-none absolute inset-x-12 bottom-5 z-20 flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-500"><span>{pageFooter}</span>{showPageNumbers ? <span>עמוד 1 מתוך {pageCount}</span> : null}</div> : null}</div>
+              <div className={`relative mx-auto w-full ${paperWidthClass}`} style={{ zoom: zoom / 100 } as CSSProperties}>{pageGuides}{pageHeader ? <div className="pointer-events-none absolute inset-x-12 top-5 z-20 border-b border-slate-200 pb-2 text-center text-xs text-slate-500">{pageHeader}</div> : null}<div ref={editorRef} data-orientation={pageOrientation} contentEditable suppressContentEditableWarning onInput={sync}
+                onPaste={(event) => { event.preventDefault(); insertTransferredContent(event.clipboardData); }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const range = document.caretRangeFromPoint?.(event.clientX, event.clientY);
+                  if (range && editorRef.current?.contains(range.startContainer)) {
+                    const selection = window.getSelection();
+                    selection?.removeAllRanges();
+                    selection?.addRange(range);
+                  }
+                  insertTransferredContent(event.dataTransfer);
+                }} dangerouslySetInnerHTML={{ __html: content }} style={{ colorScheme: "only light", aspectRatio: paperAspectRatio, fontFamily, lineHeight }} className="document-paper rich-editor relative w-full overflow-hidden rounded-md border border-slate-200 bg-white px-6 py-12 text-right text-slate-900 shadow-[0_24px_70px_rgba(0,0,0,.38)] focus:outline-none focus:ring-2 focus:ring-electric sm:px-12 sm:py-16" />{(pageFooter || showPageNumbers) ? <div className="pointer-events-none absolute inset-x-12 bottom-5 z-20 flex justify-between border-t border-slate-200 pt-2 text-xs text-slate-500"><span>{pageFooter}</span>{showPageNumbers ? <span>עמוד 1 מתוך {pageCount}</span> : null}</div> : null}</div>
             </div>
           </div>
         ) : (

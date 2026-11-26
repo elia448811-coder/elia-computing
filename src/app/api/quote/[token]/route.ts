@@ -1,4 +1,5 @@
 import { respondToQuote } from "@/lib/quotes";
+import { readLimitedText } from "@/lib/request-body";
 import { sameOrigin } from "@/lib/request-origin";
 export async function POST(
   request: Request,
@@ -8,8 +9,8 @@ export async function POST(
   if (!sameOrigin(request))
     return Response.json({ error: "forbidden" }, { status: 403, headers });
   try {
-    const raw = await request.text();
-    if (raw.length > 2000)
+    const raw = await readLimitedText(request, 8000);
+    if (raw === null || raw.length > 2000)
       return Response.json(
         { error: "invalid-input" },
         { status: 400, headers },

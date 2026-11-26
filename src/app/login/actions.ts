@@ -29,11 +29,12 @@ export async function loginAction(formData: FormData) {
           .trim()
           .toUpperCase(),
         key,
+        result.sessionVersion,
       );
       if (!verification.ok) failure = verification.locked ? "locked" : "totp";
       else {
         await recordSecurityLogin(requestHeaders.get("user-agent") ?? "", ip);
-        await createSession();
+        await createSession(verification.sessionVersion);
       }
     }
   } catch {

@@ -8,7 +8,7 @@ import { DocumentViewTracker } from "@/components/DocumentViewTracker";
 import { documentRevision, getSignerByToken, renderHtmlForSigner, signingBlockReason } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
-export const metadata: Metadata = { title: "חתימה ידנית על מסמך", robots: { index: false } };
+export const metadata: Metadata = { title: "חתימה ידנית על מסמך", robots: { index: false, follow: false }, referrer: "no-referrer", alternates: { canonical: null } };
 export const dynamic = "force-dynamic";
 
 export default async function SignPage({ params, searchParams }: {

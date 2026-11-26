@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import {
   createSession,
   hashIdentifier,
-  isAuthenticated,
+  authenticatedVersion,
   setLoginCredentials,
   validateNewPassword,
   verifyLoginTwoFactor,
@@ -12,7 +12,8 @@ export async function setCredentialsAction(
   _previous: { ok: boolean; message: string },
   formData: FormData,
 ) {
-  if (!(await isAuthenticated()))
+  const version = await authenticatedVersion();
+  if (version === undefined)
     return { ok: false, message: "פג תוקף ההתחברות. התחברו מחדש." };
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -39,6 +40,7 @@ export async function setCredentialsAction(
         .trim()
         .toUpperCase(),
       hashIdentifier(ip),
+      version,
     );
     if (!verification.ok)
       return {
@@ -47,8 +49,8 @@ export async function setCredentialsAction(
           ? "בוצעו יותר מדי ניסיונות. נסו שוב בעוד 15 דקות."
           : "נדרש קוד תקין מהמאמת או קוד שחזור כדי לעדכן את פרטי הכניסה.",
       };
-    await setLoginCredentials(username, password);
-    await createSession();
+    await setLoginCredentials(username, password, version);
+    await createSession(version + 1);
     return {
       ok: true,
       message:

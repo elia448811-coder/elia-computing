@@ -151,3 +151,74 @@ test('PDF signing respects archive state and uses the PDF fields', () => {
   assert.equal(documents.signingBlockReason(pdf), null);
   assert.equal(documents.signingBlockReason({ ...pdf, archivedAt: '2026-11-20' }), 'archived');
 });
+
+test('signer email is bound to the chosen signer and legacy corrections rotate the link', async () => {
+  const db = new MemoryDatabase(), { documents, load } = modules(db);
+  const tracking = load('src/lib/document-tracking.ts');
+  const doc = await documents.createDocument({ title: 'Draft', recipientEmail: 'first@example.test', content: '<p>Final</p>', signers: [signer('one'), signer('two')] });
+  await assert.rejects(tracking.reserveDocumentEmail(doc.id, 'two'), /recipient/);
+  const legacy = await documents.createDocument({ title: 'Old format', recipientEmail: 'old@example.test', content: '<p>Final</p>' });
+  const changed = await documents.updateHtmlDocument(legacy.id, { title: legacy.title, content: legacy.content, recipientName: 'New', recipientEmail: 'new@example.test' });
+  assert.notEqual(legacy.token, changed.token);
+  assert.equal(await documents.getSignerByToken(legacy.token), undefined);
+  assert.equal((await documents.getSignerByToken(changed.token)).document.recipientEmail, 'new@example.test');
+  await tracking.reserveDocumentEmail(legacy.id, '');
+  await assert.rejects(documents.updateHtmlDocument(legacy.id, { title: legacy.title, content: legacy.content, recipientEmail: 'different@example.test' }), /document-locked/);
+});
+
+test('logout revokes only the current session, including existing cookie format', async () => {
+  const db = new MemoryDatabase(), jar = new Map(), { auth } = modules(db, jar);
+  const cookie = 'elia_admin_session';
+  await auth.createSession(1);
+  const first = jar.get(cookie);
+  await auth.createSession(1);
+  const second = jar.get(cookie);
+  assert.notEqual(first.value, second.value);
+  assert.equal(await auth.isAuthenticated(), true);
+  await auth.clearSession();
+  jar.set(cookie, second);
+  assert.equal(await auth.isAuthenticated(), false);
+  jar.set(cookie, first);
+  assert.equal(await auth.isAuthenticated(), true);
+  const payload = `admin.${Math.floor(Date.now() / 1000) + 300}.1`;
+  const legacy = { value: payload + '.' + crypto.createHmac('sha256', process.env.AUTH_SECRET).update(payload).digest('base64url') };
+  jar.set(cookie, legacy);
+  assert.equal(await auth.isAuthenticated(), true);
+  await auth.clearSession();
+  jar.set(cookie, legacy);
+  assert.equal(await auth.isAuthenticated(), false);
+});
+
+test('login codes are used once, stale versions and missing enabled factors fail closed', async () => {
+  const db = new MemoryDatabase(), { auth } = modules(db);
+  const enrollment = await auth.beginTwoFactorEnrollment();
+  const code = authenticatorCode(enrollment.secretKey);
+  const result = await auth.confirmTwoFactorEnrollment(code);
+  assert.equal((await auth.verifyLoginTwoFactor(code, 'fixture', 1)).ok, false);
+  assert.equal((await auth.verifyLoginTwoFactor(code, 'fixture', result.sessionVersion)).ok, true);
+  assert.equal((await auth.verifyLoginTwoFactor(code, 'other')).ok, false);
+  const recovery = result.recoveryCodes[0];
+  assert.equal((await auth.verifyLoginTwoFactor(recovery, 'fixture')).ok, true);
+  assert.equal((await auth.verifyLoginTwoFactor(recovery, 'fixture')).ok, false);
+  db.records.get('system/auth').totpSecretCipher = null;
+  assert.equal((await auth.verifyLoginTwoFactor('', 'fixture')).ok, false);
+});
+
+test('quick fields preserve literal text and Hebrew field names containing quotes', () => {
+  const { load } = modules(new MemoryDatabase());
+  const { quickFieldHtml, cleanHtml } = load('src/lib/document-html.ts');
+  const field = '[ת"ז]';
+  const rendered = cleanHtml(quickFieldHtml(field, 'A < B & "company"'));
+  assert.match(rendered, /data-field="\[ת&quot;ז\]"/);
+  assert.ok(rendered.includes('A &lt; B &amp;'));
+});
+
+test('generated signer fields expose the current recipient identity only', () => {
+  const { documents } = modules(new MemoryDatabase());
+  const signers = [{ ...signer('one'), identityNumber: '111111111' }, { ...signer('two'), identityNumber: '222222222' }];
+  const content = signers.map((s) => `<span class="signature-field" data-signer-id="${s.id}">Sign</span>`).join('');
+  const html = documents.renderHtmlForSigner({ signers, content }, 'one');
+  assert.ok(html.includes('111111111'));
+  assert.ok(!html.includes('222222222'));
+  assert.ok(html.includes('Fixture two'));
+});
