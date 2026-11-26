@@ -12,10 +12,11 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; reauth?: string }>;
 }) {
-  if (await isAuthenticated()) redirect("/dashboard");
-  const { error } = await searchParams;
+  const { error, reauth } = await searchParams;
+  const reauthenticate = reauth === "1";
+  if (!reauthenticate && await isAuthenticated()) redirect("/dashboard");
   return (
     <main id="main" className="q-login-page quotes-app">
       <div className="q-login-shell">
@@ -54,12 +55,12 @@ export default async function LoginPage({
         <section className="q-login-panel">
           <p className="quote-eyebrow">האזור האישי</p>
           <h2>טוב שחזרת.</h2>
-          <p>התחברו כדי להמשיך לנהל את העסק.</p>
-          <PasswordLoginForm error={error} />
+          <p>{reauthenticate ? "כדי לשנות את הגדרות האבטחה, אמתו שוב את זהותכם." : "התחברו כדי להמשיך לנהל את העסק."}</p>
+          <PasswordLoginForm error={error} reauthenticate={reauthenticate} />
           <div className="q-login-divider">
             <span>או ממשיכים עם Google</span>
           </div>
-          <GoogleLoginButton />
+          <GoogleLoginButton reauthenticate={reauthenticate} />
           <Link href="/" className="q-text-link">
             חזרה לאתר
           </Link>

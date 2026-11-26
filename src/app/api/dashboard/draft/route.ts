@@ -1,4 +1,5 @@
 import { isAuthenticated } from "@/lib/auth";
+import { readLimitedText } from "@/lib/request-body";
 import { sameOrigin } from "@/lib/request-origin";
 import { clearWorkspaceDraft, getWorkspaceDraft, saveWorkspaceDraft } from "@/lib/workspace-drafts";
 export const dynamic = "force-dynamic";
@@ -10,10 +11,9 @@ export async function GET() {
 export async function PUT(request: Request) {
   if (!sameOrigin(request)) return Response.json({ error: "origin" }, { status: 403 });
   if (!(await isAuthenticated())) return Response.json({ error: "unauthorized" }, { status: 401 });
-  if (Number(request.headers.get("content-length") ?? 0) > 800000) return Response.json({ error: "size" }, { status: 413 });
   try {
-    const raw = await request.text();
-    if (Buffer.byteLength(raw) > 800000) return Response.json({ error: "size" }, { status: 413 });
+    const raw = await readLimitedText(request, 800000);
+    if (raw === null) return Response.json({ error: "size" }, { status: 413 });
     const input = JSON.parse(raw);
     return Response.json(await saveWorkspaceDraft(input.data, input.revision ?? null));
   } catch (error) {

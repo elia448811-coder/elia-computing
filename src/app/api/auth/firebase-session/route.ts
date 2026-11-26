@@ -1,4 +1,4 @@
-import { createSession, getTwoFactorStatus, hashIdentifier, recordSecurityLogin, verifyLoginTwoFactor } from "@/lib/auth";
+import { createSession, getTwoFactorStatus, hashIdentifier, recordSecurityLogin, redeemGoogleLogin, verifyLoginTwoFactor } from "@/lib/auth";
 import { readLimitedText } from "@/lib/request-body";
 import { sameOrigin } from "@/lib/request-origin";
 import { verifyAllowedGoogleUser } from "@/lib/firebase-auth-admin";
@@ -10,7 +10,8 @@ export async function POST(request: Request) {
     if (raw === null) return Response.json({ error: "too-large" }, { status: 413 });
     const body = JSON.parse(raw) as { idToken?: unknown; totpCode?: unknown };
     const idToken = typeof body.idToken === "string" ? body.idToken : "";
-    if (!(await verifyAllowedGoogleUser(idToken))) {
+    const authTime = await verifyAllowedGoogleUser(idToken);
+    if (!authTime) {
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
     const twoFactor = await getTwoFactorStatus();
@@ -23,8 +24,9 @@ export async function POST(request: Request) {
     if (!verification.ok) {
       return Response.json({ error: verification.locked ? "totp-locked" : "invalid-totp" }, { status: verification.locked ? 429 : 401, headers: { "Cache-Control": "no-store" } });
     }
+    if (!(await redeemGoogleLogin(authTime, verification.sessionVersion))) return Response.json({ error: "reauthenticate" }, { status: 401 });
     await recordSecurityLogin(request.headers.get("user-agent") ?? "", forwardedFor);
-    await createSession(verification.sessionVersion);
+    await createSession(verification.sessionVersion, authTime);
     return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     console.error("Firebase session verification failed");

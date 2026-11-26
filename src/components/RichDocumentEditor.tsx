@@ -1,4 +1,6 @@
 "use client";
+import { clearSubmittedText, rememberSubmission, textStamp } from "@/lib/draft-submission";
+import { usePrivateDrafts } from "@/components/PrivateDraftStorage";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
@@ -17,7 +19,7 @@ const quickFieldLabels: Record<string, string> = {
   "[חתימת הלקוח]": "חתימת הלקוח",
 };
 
-type DraftStatus = "restoring" | "saving" | "saved";
+type DraftStatus = "restoring" | "saving" | "saved" | "unavailable";
 type PageOrientation = "portrait" | "landscape";
 type RichDocumentEditorProps = {
   initialTitle?: string;
@@ -34,7 +36,7 @@ type RichDocumentEditorProps = {
   managedDraft?: boolean;
   initialWarrantyAgreement?: string;
   onDraftChange?: (draft: EditorDraft) => void;
-  savedSuccessfully?: boolean;
+  draftReceipt?: string;
 };
 
 const fontFamilies = [
@@ -79,12 +81,14 @@ export function RichDocumentEditor({
   managedDraft = false,
   initialWarrantyAgreement = "",
   onDraftChange,
-  savedSuccessfully = false,
+  draftReceipt,
 }: RichDocumentEditorProps) {
+  const cipher = usePrivateDrafts();
   const editorRef = useRef<HTMLDivElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const contentInputRef = useRef<HTMLInputElement>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const submissionRef = useRef<HTMLInputElement>(null);
   const allowOpenFieldsRef = useRef<HTMLInputElement>(null);
   const selectionRangeRef = useRef<Range | null>(null);
   const draftReadyRef = useRef(false);
@@ -119,15 +123,17 @@ export function RichDocumentEditor({
     setPageCount(Math.max(1, Math.ceil((paper.scrollHeight - 2) / nextPageHeight)));
   }, [pageOrientation]);
 
-  const saveDraft = useCallback((nextContent = content) => {
+  const saveDraft = useCallback(async (nextContent = content) => {
     if (managedDraft) return;
     if (!draftReadyRef.current) return;
     setDraftStatus("saving");
     const savedAt = new Date();
-    window.localStorage.setItem(storageKey, JSON.stringify({ version: 2, title, content: nextContent, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight, savedAt: savedAt.toISOString() }));
-    setLastSavedAt(savedAt);
-    setDraftStatus("saved");
-  }, [content, fontFamily, lineHeight, managedDraft, pageFooter, pageHeader, pageOrientation, showPageNumbers, storageKey, template, title, warrantyAgreement]);
+    try {
+      await cipher.writeText(storageKey, JSON.stringify({ version: 2, title, content: nextContent, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight, savedAt: savedAt.toISOString() }));
+      setLastSavedAt(savedAt);
+      setDraftStatus("saved");
+    } catch { setDraftStatus("unavailable"); }
+  }, [cipher, content, fontFamily, lineHeight, managedDraft, pageFooter, pageHeader, pageOrientation, showPageNumbers, storageKey, template, title, warrantyAgreement]);
 
   useEffect(() => {
     onDraftChange?.({ title, content, template, warrantyAgreement, pageOrientation, pageHeader, pageFooter, showPageNumbers, fontFamily, lineHeight });
@@ -266,10 +272,12 @@ export function RichDocumentEditor({
 
   useEffect(() => {
     if (managedDraft) return;
-    const restoreTimer = window.setTimeout(() => {
+    let cancelled = false;
+    const restoreTimer = window.setTimeout(async () => {
       try {
-        if (savedSuccessfully) { window.localStorage.removeItem(storageKey); return; }
-        const stored = window.localStorage.getItem(storageKey);
+        clearSubmittedText(storageKey, draftReceipt);
+        const stored = await cipher.readText(storageKey);
+        if (cancelled) return;
         if (stored) {
           const draft = JSON.parse(stored) as { title?: string; content?: string; template?: DocumentTemplateKey; warrantyAgreement?: string; pageOrientation?: PageOrientation; pageHeader?: string; pageFooter?: string; showPageNumbers?: boolean; fontFamily?: string; lineHeight?: string; savedAt?: string };
           if (draft.title && draft.content && draft.template && documentTemplates[draft.template]) {
@@ -289,17 +297,17 @@ export function RichDocumentEditor({
           }
         }
       } catch {
-        window.localStorage.removeItem(storageKey);
-      } finally {
-        draftReadyRef.current = true;
-        setDraftStatus("saved");
+        if (!cancelled) setDraftStatus("unavailable");
+        return;
       }
+      if (!cancelled) { draftReadyRef.current = true; setDraftStatus("saved"); }
     }, 0);
 
     return () => {
+      cancelled = true;
       window.clearTimeout(restoreTimer);
     };
-  }, [initialFontFamily, initialLineHeight, initialOrientation, initialPageFooter, initialPageHeader, initialShowPageNumbers, managedDraft, savedSuccessfully, storageKey]);
+  }, [cipher, initialFontFamily, initialLineHeight, initialOrientation, initialPageFooter, initialPageHeader, initialShowPageNumbers, managedDraft, draftReceipt, storageKey]);
 
   useEffect(() => {
     if (!draftReadyRef.current) return;
@@ -329,11 +337,11 @@ export function RichDocumentEditor({
         event.preventDefault();
         return;
       }
-      // Keep the recovery copy until the server confirms the save.
+      if (!managedDraft && submissionRef.current) submissionRef.current.value = rememberSubmission(storageKey, textStamp(storageKey));
     };
     form.addEventListener("submit", validateBeforeSubmit);
     return () => form.removeEventListener("submit", validateBeforeSubmit);
-  }, [content, signers, storageKey]);
+  }, [content, managedDraft, signers, storageKey]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -370,7 +378,7 @@ export function RichDocumentEditor({
   }, [content, updatePageMetrics, view]);
 
   const wordCount = content.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length;
-  const statusText = draftStatus === "saving" ? "שומר טיוטה…" : draftStatus === "restoring" ? "טוען טיוטה…" : `הטיוטה נשמרה${lastSavedAt ? ` ב־${lastSavedAt.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}` : " בדפדפן"}`;
+  const statusText = draftStatus === "unavailable" ? "העותק המקומי אינו זמין כרגע" : draftStatus === "saving" ? "שומר טיוטה…" : draftStatus === "restoring" ? "טוען טיוטה…" : `הטיוטה נשמרה${lastSavedAt ? ` ב־${lastSavedAt.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}` : " בדפדפן"}`;
   const paperWidthClass = pageOrientation === "landscape" ? "max-w-[1120px]" : "max-w-[860px]";
   const paperAspectRatio = pageOrientation === "landscape" ? "297 / 210" : "210 / 297";
 
@@ -491,6 +499,7 @@ export function RichDocumentEditor({
         <input type="hidden" name="fontFamily" value={fontFamily} />
         <input type="hidden" name="lineHeight" value={lineHeight} />
         <input ref={allowOpenFieldsRef} type="hidden" name="allowOpenFields" defaultValue="false" />
+      {!managedDraft && <input type="hidden" name="draftSubmission" ref={submissionRef} />}
         <div ref={printRef} className="document-print-root document-preview" data-orientation={pageOrientation} dir="rtl" style={{ fontFamily, lineHeight }}><div className="document-print-header">{pageHeader}</div><div dangerouslySetInnerHTML={{ __html: content }} /><div className="document-print-footer"><span>{pageFooter}</span>{showPageNumbers ? <span className="document-page-counter" /> : null}</div></div>
       </div>
     </div>

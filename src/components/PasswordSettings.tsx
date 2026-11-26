@@ -65,6 +65,7 @@ export function PasswordSettings() {
         <p className="q-full q-help">
           לפחות 12 תווים, אות גדולה וקטנה באנגלית, ספרה וסימן מיוחד.
         </p>
+        {"reauth" in result && result.reauth === true && <a className="q-full underline" href="/login?reauth=1">להתחברות מחדש</a>}
         {result.message ? (
           <p
             className={`q-full q-alert ${result.ok ? "q-success" : "q-error"}`}

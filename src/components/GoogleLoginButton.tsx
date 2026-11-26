@@ -22,7 +22,7 @@ function firebaseAuth() {
   return auth;
 }
 
-export function GoogleLoginButton() {
+export function GoogleLoginButton({ reauthenticate }: { reauthenticate: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -42,12 +42,16 @@ export function GoogleLoginButton() {
       return false;
     }
     if (!response.ok) {
-      if (result.error === "invalid-totp") setError("הקוד מהמאמת אינו נכון או שפג תוקפו.");
+      if (result.error === "reauthenticate" || result.error === "forbidden") {
+        setPendingIdToken("");
+        setTotpCode("");
+        setError("יש להתחבר מחדש עם חשבון Google המורשה.");
+      } else if (result.error === "invalid-totp") setError("הקוד מהמאמת אינו נכון או שפג תוקפו.");
       else if (result.error === "totp-locked") setError("בוצעו יותר מדי ניסיונות. נסו שוב בעוד 15 דקות.");
       else setError("לא הצלחנו לאמת את חשבון Google. נסו שוב.");
       return false;
     }
-    router.replace("/dashboard");
+    router.replace(reauthenticate ? "/dashboard#security" : "/dashboard");
     router.refresh();
     return true;
   }

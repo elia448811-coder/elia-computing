@@ -1,5 +1,6 @@
 import { isAuthenticated } from "@/lib/auth";
 import { listQuotes, saveQuote, transitionQuote } from "@/lib/quotes";
+import { readLimitedText } from "@/lib/request-body";
 import { sameOrigin } from "@/lib/request-origin";
 const headers = { "Cache-Control": "private, no-store" };
 export async function GET() {
@@ -13,8 +14,8 @@ async function mutate(request: Request) {
   if (!(await isAuthenticated()))
     return Response.json({ error: "unauthorized" }, { status: 401, headers });
   try {
-    const raw = await request.text();
-    if (raw.length > 65000)
+    const raw = await readLimitedText(request, 65000 * 3);
+    if (raw === null || raw.length > 65000)
       return Response.json({ error: "too-large" }, { status: 413, headers });
     const body = JSON.parse(raw) as Record<string, unknown>;
     if (!body || typeof body !== "object") throw new Error("invalid-input");

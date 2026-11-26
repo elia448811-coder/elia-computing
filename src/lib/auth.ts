@@ -7,6 +7,7 @@ import { getDatabase } from "@/lib/firebase-admin";
 
 const COOKIE_NAME = "elia_admin_session";
 const SESSION_TTL = 14400;
+const RECENT_LOGIN_SECONDS = 300;
 const MAX_ATTEMPTS = 5;
 const LOCK_MS = 900000;
 const TOTP_PERIOD_SECONDS = 30;
@@ -21,6 +22,9 @@ type AuthState = {
   totpPendingSecretCipher?: string | null;
   totpPendingExpiresAt?: number | null;
   totpPendingSessionVersion?: number | null;
+  totpPendingSessionId?: string | null;
+  totpPendingFailures?: number;
+  lastGoogleAuthTime?: number;
   totpManagementFailures?: number;
   totpManagementExpiresAt?: number;
   recoveryCodeHashes?: string[];
@@ -62,6 +66,10 @@ async function state(): Promise<AuthState> {
     totpPendingSessionVersion: data?.totpPendingSessionVersion,
     recoveryCodeHashes: Array.isArray(data?.recoveryCodeHashes) ? data.recoveryCodeHashes : [],
   };
+}
+
+export function deviceDraftKey(device: string) {
+  return createHmac("sha256", secret()).update(`elia-local-draft-key-v1:\0${device}`).digest("base64");
 }
 
 function encryptionKey() { return createHash("sha256").update(secret()).digest(); }
@@ -115,10 +123,11 @@ function totpAt(secretKey: string, counter: number) {
   const number = (digest.readUInt32BE(offset) & 0x7fffffff) % (10 ** TOTP_DIGITS);
   return String(number).padStart(TOTP_DIGITS, "0");
 }
-function validTotp(secretKey: string, code: string) {
-  if (!/^\d{6}$/.test(code)) return false;
-  const counter = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
-  return [-1, 0, 1].some((offset) => safeEqual(totpAt(secretKey, counter + offset), code));
+function unusedTotpCounter(secretKey: string, code: string, previous = -1) {
+  if (!/^\d{6}$/.test(code)) return undefined;
+  const current = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
+  return [current, current - 1, current + 1].find((counter) =>
+    counter > previous && safeEqual(totpAt(secretKey, counter), code));
 }
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -155,12 +164,23 @@ export async function authenticate(username: string, password: string, key: stri
   return { ok: true as const, locked: false, sessionVersion: auth.sessionVersion };
 }
 
-export async function createSession(version: number) {
+export async function createSession(version: number, loginTime = 0) {
   const expires = Math.floor(Date.now() / 1000) + SESSION_TTL;
-  const payload = `admin.${expires}.${version}.${randomBytes(18).toString("hex")}`;
+  const payload = `admin.${expires}.${version}.${loginTime}.${randomBytes(18).toString("hex")}`;
   (await cookies()).set(COOKIE_NAME, `${payload}.${sign(payload)}`, {
     httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production",
     path: "/", maxAge: SESSION_TTL, priority: "high",
+  });
+}
+
+// Firebase can issue multiple ID tokens for one sign-in. Redeem the sign-in itself once.
+export async function redeemGoogleLogin(authTime: number, version: number) {
+  const db = getDatabase(), ref = db.doc("system/auth");
+  return db.runTransaction(async (tx) => {
+    const current = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
+    if (!hasRecentLogin(authTime) || version !== Number(current?.sessionVersion ?? 1) || authTime <= (current?.lastGoogleAuthTime ?? 0)) return false;
+    tx.set(ref, { lastGoogleAuthTime: authTime }, { merge: true });
+    return true;
   });
 }
 
@@ -178,7 +198,7 @@ function createRecoveryCodes() {
   });
 }
 
-export async function beginTwoFactorEnrollment(expectedVersion?: number) {
+export async function beginTwoFactorEnrollment(sessionId: string, expectedVersion: number) {
   const secretKey = toBase32(randomBytes(20));
   const expiresAt = Date.now() + (10 * 60 * 1000);
   const db = getDatabase(), ref = db.doc("system/auth");
@@ -186,8 +206,11 @@ export async function beginTwoFactorEnrollment(expectedVersion?: number) {
     const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
     if (expectedVersion !== undefined && Number(auth?.sessionVersion ?? 1) !== expectedVersion) throw new Error("stale-session");
     if (auth?.totpEnabled) throw new Error("two-factor-already-enabled");
+    if (auth?.totpPendingSecretCipher && Number(auth.totpPendingExpiresAt) > Date.now() && auth.totpPendingSessionVersion === expectedVersion && auth.totpPendingSessionId && auth.totpPendingSessionId !== sessionId) throw new Error("enrollment-in-progress");
     transaction.set(ref, {
       totpPendingSecretCipher: encryptSecret(secretKey),
+      totpPendingSessionId: sessionId,
+      totpPendingFailures: 0,
       totpPendingExpiresAt: expiresAt,
       totpPendingSessionVersion: Number(auth?.sessionVersion ?? 1),
     }, { merge: true });
@@ -201,22 +224,29 @@ export async function beginTwoFactorEnrollment(expectedVersion?: number) {
   };
 }
 
-export async function confirmTwoFactorEnrollment(code: string, expectedVersion?: number) {
+export async function confirmTwoFactorEnrollment(code: string, sessionId: string, expectedVersion: number) {
   const db = getDatabase(), ref = db.doc("system/auth");
   return db.runTransaction(async (transaction) => {
     const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
     if ((expectedVersion !== undefined && Number(auth?.sessionVersion ?? 1) !== expectedVersion) || auth?.totpEnabled || !auth?.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now() ||
         auth.totpPendingSessionVersion !== Number(auth.sessionVersion ?? 1)) return { ok: false as const, recoveryCodes: [] };
+    if (auth.totpPendingSessionId !== sessionId || (auth.totpPendingFailures ?? 0) >= MAX_ATTEMPTS) return { ok: false as const, recoveryCodes: [] };
     const secretKey = decryptSecret(auth.totpPendingSecretCipher);
-    if (!validTotp(secretKey, code)) return { ok: false as const, recoveryCodes: [] };
+    const counter = unusedTotpCounter(secretKey, code);
+    if (counter === undefined) {
+      transaction.set(ref, { totpPendingFailures: (auth.totpPendingFailures ?? 0) + 1 }, { merge: true });
+      return { ok: false as const, recoveryCodes: [] };
+    }
     const recoveryCodes = createRecoveryCodes();
     transaction.set(ref, {
       totpEnabled: true,
-      lastLoginTotpCounter: null,
+      lastLoginTotpCounter: counter,
       totpSecretCipher: encryptSecret(secretKey),
       totpPendingSecretCipher: null,
       totpPendingExpiresAt: null,
       totpPendingSessionVersion: null,
+      totpPendingSessionId: null,
+      totpPendingFailures: 0,
       recoveryCodeHashes: recoveryCodes.map(recoveryCodeHash),
       sessionVersion: Number(auth.sessionVersion ?? 1) + 1,
     }, { merge: true });
@@ -224,12 +254,12 @@ export async function confirmTwoFactorEnrollment(code: string, expectedVersion?:
   });
 }
 
-export async function cancelTwoFactorEnrollment(expectedVersion: number) {
+export async function cancelTwoFactorEnrollment(sessionId: string, expectedVersion: number) {
   const db = getDatabase(), ref = db.doc("system/auth");
   await db.runTransaction(async (tx) => {
     const auth = (await tx.get(ref)).data();
-    if (Number(auth?.sessionVersion ?? 1) !== expectedVersion) return;
-    tx.set(ref, { totpPendingSecretCipher: null, totpPendingExpiresAt: null, totpPendingSessionVersion: null }, { merge: true });
+    if (Number(auth?.sessionVersion ?? 1) !== expectedVersion || auth?.totpPendingSessionId !== sessionId) return;
+    tx.set(ref, { totpPendingSecretCipher: null, totpPendingExpiresAt: null, totpPendingSessionVersion: null, totpPendingSessionId: null, totpPendingFailures: 0 }, { merge: true });
   });
 }
 
@@ -241,7 +271,7 @@ export async function disableTwoFactor(code: string, expectedVersion?: number) {
     const expiresAt = Number(data.totpManagementExpiresAt ?? 0);
     const failures = expiresAt > Date.now() ? Number(data.totpManagementFailures ?? 0) : 0;
     if (failures >= MAX_ATTEMPTS) return false;
-    if (!validTotp(decryptSecret(data.totpSecretCipher), code)) {
+    if (unusedTotpCounter(decryptSecret(data.totpSecretCipher), code, data.lastLoginTotpCounter ?? -1) === undefined) {
       transaction.set(ref, { totpManagementFailures: failures + 1, totpManagementExpiresAt: expiresAt > Date.now() ? expiresAt : Date.now() + LOCK_MS }, { merge: true });
       return false;
     }
@@ -251,6 +281,8 @@ export async function disableTwoFactor(code: string, expectedVersion?: number) {
       totpPendingSecretCipher: null,
       totpPendingExpiresAt: null,
       totpPendingSessionVersion: null,
+      totpPendingSessionId: null,
+      totpPendingFailures: 0,
       totpManagementFailures: 0,
       totpManagementExpiresAt: 0,
       recoveryCodeHashes: [],
@@ -274,11 +306,7 @@ export async function verifyLoginTwoFactor(code: string, attemptKey: string, exp
     const active = Number(attempts?.expiresAt ?? 0) > Date.now();
     const count = active ? Number(attempts?.count ?? 0) : 0;
     if (count >= MAX_ATTEMPTS) return { ...denied, locked: true };
-    const currentCounter = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
-    const secretKey = decryptSecret(auth.totpSecretCipher);
-    const counter = /^\d{6}$/.test(code)
-      ? [currentCounter, currentCounter - 1, currentCounter + 1].find((n) => n > (auth.lastLoginTotpCounter ?? -1) && safeEqual(totpAt(secretKey, n), code))
-      : undefined;
+    const counter = unusedTotpCounter(decryptSecret(auth.totpSecretCipher), code, auth.lastLoginTotpCounter ?? -1);
     if (counter !== undefined) {
       tx.set(ref, { lastLoginTotpCounter: counter }, { merge: true });
     } else {
@@ -299,12 +327,12 @@ async function signedSession() {
   const value = (await cookies()).get(COOKIE_NAME)?.value;
   if (!value || value.length > 240) return undefined;
   const parts = value.split(".");
-  // Accept existing four-part cookies for the remainder of their original lifetime.
-  if (parts.length !== 4 && parts.length !== 5) return undefined;
+  // Cookies issued before step-up support can still open the dashboard until expiry.
+  if (![4, 5, 6].includes(parts.length)) return undefined;
   const signature = parts.pop()!, [role, expires, version] = parts;
   if (role !== "admin" || !Number.isSafeInteger(Number(expires)) || Number(expires) <= Math.floor(Date.now() / 1000) ||
       !safeEqual(signature, sign(parts.join(".")))) return undefined;
-  return { id: hashIdentifier(value), expires: Number(expires), version: Number(version) };
+  return { id: hashIdentifier(value), expires: Number(expires), version: Number(version), loginTime: parts.length === 5 ? Number(parts[3]) : 0 };
 }
 export async function clearSession() {
   const session = await signedSession();
@@ -320,12 +348,17 @@ export async function clearSession() {
   }
   (await cookies()).delete(COOKIE_NAME);
 }
-export async function authenticatedVersion() {
+export async function authenticatedSession() {
   const session = await signedSession();
   if (!session) return undefined;
   const auth = await state();
-  return session.version === auth.sessionVersion && !auth.revokedSessions?.some((entry) => entry.id === session.id) ? session.version : undefined;
+  return session.version === auth.sessionVersion && !auth.revokedSessions?.some((entry) => entry.id === session.id) ? session : undefined;
 }
+export function hasRecentLogin(loginTime: number) {
+  const now = Math.floor(Date.now() / 1000);
+  return Number.isSafeInteger(loginTime) && loginTime > 0 && loginTime <= now && now - loginTime < RECENT_LOGIN_SECONDS;
+}
+export async function authenticatedVersion() { return (await authenticatedSession())?.version; }
 export async function isAuthenticated() { return (await authenticatedVersion()) !== undefined; }
 export function validateNewPassword(password: string, username: string) {
   if (password.length < 12) return "short";

@@ -1,4 +1,5 @@
 import { isAuthenticated } from "@/lib/auth";
+import { readLimitedBytes } from "@/lib/request-body";
 import { sameOrigin } from "@/lib/request-origin";
 import { getPdfDraft, readPdfDraft, savePdfDraft } from "@/lib/pdf-drafts";
 export const dynamic = "force-dynamic";
@@ -15,9 +16,10 @@ export async function GET(request: Request) {
 export async function PUT(request: Request) {
   if (!sameOrigin(request)) return new Response(null, { status: 403 });
   if (!(await isAuthenticated())) return new Response(null, { status: 401 });
-  if (Number(request.headers.get("content-length") ?? 0) > 4400000) return new Response(null, { status: 413 });
   try {
-    const form = await request.formData();
+    const bytes = await readLimitedBytes(request, 4400000);
+    if (bytes === null) return new Response(null, { status: 413 });
+    const form = await new Response(bytes, { headers: { "Content-Type": request.headers.get("content-type") ?? "" } }).formData();
     const raw = String(form.get("data") ?? "");
     if (Buffer.byteLength(raw) > 30000) return new Response(null, { status: 413 });
     const file = form.get("file");

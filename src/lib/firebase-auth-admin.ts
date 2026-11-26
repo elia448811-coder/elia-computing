@@ -1,4 +1,5 @@
 import "server-only";
+import { hasRecentLogin } from "@/lib/auth";
 import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 
@@ -13,7 +14,8 @@ function firebaseAdminApp() {
 export async function verifyAllowedGoogleUser(idToken: string) {
   if (!idToken || idToken.length > 12000) return false;
   const decoded = await getAuth(firebaseAdminApp()).verifyIdToken(idToken);
-  return decoded.email_verified === true &&
+  const allowed = decoded.email_verified === true &&
     decoded.email?.toLowerCase() === ALLOWED_GOOGLE_EMAIL &&
     decoded.firebase?.sign_in_provider === "google.com";
+  return allowed && hasRecentLogin(decoded.auth_time) ? decoded.auth_time : false;
 }
