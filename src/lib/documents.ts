@@ -162,7 +162,7 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
   const update = {
     title: input.title.trim(), recipientName: input.recipientName?.trim(), recipientEmail: input.recipientEmail?.trim(),
     content: cleanHtml(input.content ?? ""), template: input.template ?? "blank",
-    pageOrientation: input.pageOrientation === "landscape" ? "landscape" : "portrait",
+    pageOrientation: input.pageOrientation === "landscape" ? "landscape" as const : "portrait" as const,
     pageHeader: input.pageHeader?.trim().slice(0, 160) ?? "", pageFooter: input.pageFooter?.trim().slice(0, 160) ?? "",
     showPageNumbers: input.showPageNumbers !== false, fontFamily: input.fontFamily ?? "Heebo", lineHeight: input.lineHeight ?? "1.75", updatedAt,
   };
