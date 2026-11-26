@@ -4,6 +4,8 @@ import { Resend } from "resend";
 import { serviceTypeOptions } from "@/data/content";
 import { sameOrigin } from "@/lib/request-origin";
 import { siteConfig } from "@/data/site";
+import { getDatabase } from "@/lib/firebase-admin";
+import { readLimitedText } from "@/lib/request-body";
 
 export const runtime = "nodejs";
 
@@ -28,7 +30,7 @@ type ContactBody = {
   [HONEYPOT_FIELD]?: string;
 };
 
-const rateBucket = new Map<string, { count: number; resetAt: number }>();
+
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -90,22 +92,20 @@ function readRateCookie(request: Request) {
   return timestamp;
 }
 
-function isMemoryRateLimited(ip: string) {
-  const now = Date.now();
-  const current = rateBucket.get(ip);
-
-  if (!current || now > current.resetAt) {
-    rateBucket.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
-    return false;
-  }
-
-  if (current.count >= RATE_LIMIT_MAX) {
+// A single bounded minute bucket is shared by all serverless instances.
+async function reserveContactEmail(ip: string) {
+  const db = getDatabase(), ref = db.doc("system/contactRate");
+  const key = createHmac("sha256", getRateSecret()).update(ip).digest("hex");
+  return db.runTransaction(async (tx) => {
+    const now = Date.now();
+    const stored = (await tx.get(ref)).data();
+    const active = Number(stored?.expiresAt ?? 0) > now;
+    const counts: Record<string, number> = active ? stored!.counts : {};
+    const total = active ? Number(stored!.total) : 0;
+    if ((counts[key] ?? 0) >= RATE_LIMIT_MAX || total >= 100) return false;
+    tx.set(ref, { counts: { ...counts, [key]: (counts[key] ?? 0) + 1 }, total: total + 1, expiresAt: active ? stored!.expiresAt : now + RATE_LIMIT_WINDOW_MS });
     return true;
-  }
-
-  current.count += 1;
-  rateBucket.set(ip, current);
-  return false;
+  });
 }
 
 function isCookieRateLimited(request: Request) {
@@ -143,19 +143,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const ip = getClientIp(request);
-  if (isMemoryRateLimited(ip)) {
-    return NextResponse.json(
-      { error: "נשלחו יותר מדי פניות. נסו שוב בעוד דקה." },
-      { status: 429 },
-    );
-  }
-
   let body: ContactBody;
 
   try {
-    const raw = await request.text();
-    if (raw.length > 12000) return NextResponse.json({ error: "בקשה גדולה מדי" }, { status: 413 });
+    const raw = await readLimitedText(request, 12000);
+    if (raw === null) return NextResponse.json({ error: "בקשה גדולה מדי" }, { status: 413 });
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || Object.values(parsed).some((value) => typeof value !== "string")) return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
     body = parsed as ContactBody;
@@ -216,6 +208,9 @@ export async function POST(request: Request) {
   const idempotencyKey = `contact-form/${fingerprint}/${Math.floor(Date.now() / 60_000)}`;
 
   try {
+  if (!(await reserveContactEmail(getClientIp(request)))) {
+    return NextResponse.json({ error: "נשלחו יותר מדי פניות. נסו שוב בעוד דקה." }, { status: 429, headers: { "Retry-After": "60" } });
+  }
   const { error } = await resend.emails.send(
     {
       from: fromEmail,

@@ -24,6 +24,8 @@ type AuthState = {
   totpManagementFailures?: number;
   totpManagementExpiresAt?: number;
   recoveryCodeHashes?: string[];
+  lastLoginTotpCounter?: number | null;
+  revokedSessions?: { id: string; expires: number }[];
 };
 
 function secret() {
@@ -52,6 +54,7 @@ async function state(): Promise<AuthState> {
     passwordHash: data?.passwordHash,
     loginUsername: data?.loginUsername,
     sessionVersion: Number(data?.sessionVersion ?? 1),
+    revokedSessions: data?.revokedSessions ?? [],
     totpEnabled: data?.totpEnabled === true,
     totpSecretCipher: data?.totpSecretCipher,
     totpPendingSecretCipher: data?.totpPendingSecretCipher,
@@ -123,36 +126,38 @@ async function hashPassword(password: string) {
   return `scrypt:${salt}:${derived.toString("hex")}`;
 }
 async function passwordMatches(password: string, encoded?: string) {
-  if (!encoded) return safeEqual(password, process.env.ADMIN_PASSWORD ?? "");
+  if (!encoded) return Boolean(password && process.env.ADMIN_PASSWORD && safeEqual(password, process.env.ADMIN_PASSWORD));
   const [algorithm, salt, expected] = encoded.split(":");
   if (algorithm !== "scrypt" || !salt || !expected) return false;
   const actual = (await scrypt(password, salt, 64) as Buffer).toString("hex");
   return safeEqual(actual, expected);
 }
-async function attemptCount(key: string) {
-  const data = (await getDatabase().doc(`loginAttempts/${key}`).get()).data() as { count?: number; expiresAt?: number } | undefined;
-  return Number(data?.expiresAt ?? 0) > Date.now() ? Number(data?.count ?? 0) : 0;
-}
-async function fail(key: string) {
+async function reservePasswordAttempt(key: string) {
   const db = getDatabase(), ref = db.doc(`loginAttempts/${key}`);
-  await db.runTransaction(async tx => {
-    const data = (await tx.get(ref)).data() as { count?: number; expiresAt?: number } | undefined;
-    const count = Number(data?.expiresAt ?? 0) > Date.now() ? Number(data?.count ?? 0) : 0;
-    tx.set(ref, { count: count + 1, expiresAt: Date.now() + LOCK_MS });
+  return db.runTransaction(async (tx) => {
+    const data = (await tx.get(ref)).data();
+    const active = Number(data?.expiresAt ?? 0) > Date.now();
+    const count = active ? Number(data?.count ?? 0) : 0;
+    if (count >= MAX_ATTEMPTS) return false;
+    tx.set(ref, { count: count + 1, expiresAt: active ? data!.expiresAt : Date.now() + LOCK_MS });
+    return true;
   });
 }
+
 export async function authenticate(username: string, password: string, key: string) {
-  if (await attemptCount(key) >= MAX_ATTEMPTS) return { ok: false, locked: true };
+  if (!(await reservePasswordAttempt(key))) return { ok: false as const, locked: true };
   const auth = await state();
   const expected = auth.loginUsername || process.env.ADMIN_USERNAME || "";
-  const valid = Boolean(expected && password && safeEqual(username, expected) && await passwordMatches(password, auth.passwordHash));
-  if (!valid) { await fail(key); return { ok: false, locked: false }; }
+  if (!expected || !password || !safeEqual(username, expected) || !(await passwordMatches(password, auth.passwordHash))) {
+    return { ok: false as const, locked: false };
+  }
   await getDatabase().doc(`loginAttempts/${key}`).delete();
-  return { ok: true, locked: false };
+  return { ok: true as const, locked: false, sessionVersion: auth.sessionVersion };
 }
-export async function createSession() {
+
+export async function createSession(version: number) {
   const expires = Math.floor(Date.now() / 1000) + SESSION_TTL;
-  const payload = `admin.${expires}.${(await state()).sessionVersion}`;
+  const payload = `admin.${expires}.${version}.${randomBytes(18).toString("hex")}`;
   (await cookies()).set(COOKIE_NAME, `${payload}.${sign(payload)}`, {
     httpOnly: true, sameSite: "strict", secure: process.env.NODE_ENV === "production",
     path: "/", maxAge: SESSION_TTL, priority: "high",
@@ -173,12 +178,13 @@ function createRecoveryCodes() {
   });
 }
 
-export async function beginTwoFactorEnrollment() {
+export async function beginTwoFactorEnrollment(expectedVersion?: number) {
   const secretKey = toBase32(randomBytes(20));
   const expiresAt = Date.now() + (10 * 60 * 1000);
   const db = getDatabase(), ref = db.doc("system/auth");
   await db.runTransaction(async (transaction) => {
     const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
+    if (expectedVersion !== undefined && Number(auth?.sessionVersion ?? 1) !== expectedVersion) throw new Error("stale-session");
     if (auth?.totpEnabled) throw new Error("two-factor-already-enabled");
     transaction.set(ref, {
       totpPendingSecretCipher: encryptSecret(secretKey),
@@ -195,17 +201,18 @@ export async function beginTwoFactorEnrollment() {
   };
 }
 
-export async function confirmTwoFactorEnrollment(code: string) {
+export async function confirmTwoFactorEnrollment(code: string, expectedVersion?: number) {
   const db = getDatabase(), ref = db.doc("system/auth");
   return db.runTransaction(async (transaction) => {
     const auth = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
-    if (auth?.totpEnabled || !auth?.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now() ||
+    if ((expectedVersion !== undefined && Number(auth?.sessionVersion ?? 1) !== expectedVersion) || auth?.totpEnabled || !auth?.totpPendingSecretCipher || Number(auth.totpPendingExpiresAt ?? 0) < Date.now() ||
         auth.totpPendingSessionVersion !== Number(auth.sessionVersion ?? 1)) return { ok: false as const, recoveryCodes: [] };
     const secretKey = decryptSecret(auth.totpPendingSecretCipher);
     if (!validTotp(secretKey, code)) return { ok: false as const, recoveryCodes: [] };
     const recoveryCodes = createRecoveryCodes();
     transaction.set(ref, {
       totpEnabled: true,
+      lastLoginTotpCounter: null,
       totpSecretCipher: encryptSecret(secretKey),
       totpPendingSecretCipher: null,
       totpPendingExpiresAt: null,
@@ -213,19 +220,24 @@ export async function confirmTwoFactorEnrollment(code: string) {
       recoveryCodeHashes: recoveryCodes.map(recoveryCodeHash),
       sessionVersion: Number(auth.sessionVersion ?? 1) + 1,
     }, { merge: true });
-    return { ok: true as const, recoveryCodes };
+    return { ok: true as const, recoveryCodes, sessionVersion: Number(auth.sessionVersion ?? 1) + 1 };
   });
 }
 
-export async function cancelTwoFactorEnrollment() {
-  await getDatabase().doc("system/auth").set({ totpPendingSecretCipher: null, totpPendingExpiresAt: null, totpPendingSessionVersion: null }, { merge: true });
+export async function cancelTwoFactorEnrollment(expectedVersion: number) {
+  const db = getDatabase(), ref = db.doc("system/auth");
+  await db.runTransaction(async (tx) => {
+    const auth = (await tx.get(ref)).data();
+    if (Number(auth?.sessionVersion ?? 1) !== expectedVersion) return;
+    tx.set(ref, { totpPendingSecretCipher: null, totpPendingExpiresAt: null, totpPendingSessionVersion: null }, { merge: true });
+  });
 }
 
-export async function disableTwoFactor(code: string) {
+export async function disableTwoFactor(code: string, expectedVersion?: number) {
   const db = getDatabase(), ref = db.doc("system/auth");
   return db.runTransaction(async (transaction) => {
     const data = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
-    if (!data?.totpEnabled || !data.totpSecretCipher) return false;
+    if ((expectedVersion !== undefined && Number(data?.sessionVersion ?? 1) !== expectedVersion) || !data?.totpEnabled || !data.totpSecretCipher) return false;
     const expiresAt = Number(data.totpManagementExpiresAt ?? 0);
     const failures = expiresAt > Date.now() ? Number(data.totpManagementFailures ?? 0) : 0;
     if (failures >= MAX_ATTEMPTS) return false;
@@ -248,58 +260,95 @@ export async function disableTwoFactor(code: string) {
   });
 }
 
-export async function verifyLoginTwoFactor(code: string, attemptKey: string) {
-  const auth = await state();
-  if (!auth.totpEnabled || !auth.totpSecretCipher) return { required: false, ok: true, locked: false };
-  if (await attemptCount(`totp-${attemptKey}`) >= MAX_ATTEMPTS) return { required: true, ok: false, locked: true };
-  let ok = validTotp(decryptSecret(auth.totpSecretCipher), code);
-  if (!ok && normalizeRecoveryCode(code).length === 12) {
-    const codeHash = recoveryCodeHash(code), ref = getDatabase().doc("system/auth");
-    ok = await getDatabase().runTransaction(async (transaction) => {
-      const current = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
-      const codes = Array.isArray(current?.recoveryCodeHashes) ? current.recoveryCodeHashes : [];
-      if (!codes.some((value) => safeEqual(value, codeHash))) return false;
-      transaction.set(ref, { recoveryCodeHashes: codes.filter((value) => !safeEqual(value, codeHash)) }, { merge: true });
-      return true;
+export async function verifyLoginTwoFactor(code: string, attemptKey: string, expectedVersion?: number) {
+  const db = getDatabase(), ref = db.doc("system/auth"), limit = db.doc(`loginAttempts/totp-${attemptKey}`);
+  return db.runTransaction(async (tx) => {
+    const auth = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
+    const sessionVersion = Number(auth?.sessionVersion ?? 1);
+    const required = auth?.totpEnabled === true;
+    const denied = { required, ok: false, locked: false, sessionVersion };
+    if (expectedVersion !== undefined && expectedVersion !== sessionVersion) return denied;
+    if (!required) return { ...denied, ok: true };
+    if (!auth?.totpSecretCipher) return denied;
+    const attempts = (await tx.get(limit)).data();
+    const active = Number(attempts?.expiresAt ?? 0) > Date.now();
+    const count = active ? Number(attempts?.count ?? 0) : 0;
+    if (count >= MAX_ATTEMPTS) return { ...denied, locked: true };
+    const currentCounter = Math.floor(Date.now() / 1000 / TOTP_PERIOD_SECONDS);
+    const secretKey = decryptSecret(auth.totpSecretCipher);
+    const counter = /^\d{6}$/.test(code)
+      ? [currentCounter, currentCounter - 1, currentCounter + 1].find((n) => n > (auth.lastLoginTotpCounter ?? -1) && safeEqual(totpAt(secretKey, n), code))
+      : undefined;
+    if (counter !== undefined) {
+      tx.set(ref, { lastLoginTotpCounter: counter }, { merge: true });
+    } else {
+      const hashes = auth.recoveryCodeHashes ?? [];
+      const hash = normalizeRecoveryCode(code).length === 12 ? recoveryCodeHash(code) : "";
+      if (!hash || !hashes.some((value) => safeEqual(value, hash))) {
+        tx.set(limit, { count: count + 1, expiresAt: active ? attempts!.expiresAt : Date.now() + LOCK_MS });
+        return denied;
+      }
+      tx.set(ref, { recoveryCodeHashes: hashes.filter((value) => !safeEqual(value, hash)) }, { merge: true });
+    }
+    tx.delete(limit);
+    return { ...denied, ok: true };
+  });
+}
+
+async function signedSession() {
+  const value = (await cookies()).get(COOKIE_NAME)?.value;
+  if (!value || value.length > 240) return undefined;
+  const parts = value.split(".");
+  // Accept existing four-part cookies for the remainder of their original lifetime.
+  if (parts.length !== 4 && parts.length !== 5) return undefined;
+  const signature = parts.pop()!, [role, expires, version] = parts;
+  if (role !== "admin" || !Number.isSafeInteger(Number(expires)) || Number(expires) <= Math.floor(Date.now() / 1000) ||
+      !safeEqual(signature, sign(parts.join(".")))) return undefined;
+  return { id: hashIdentifier(value), expires: Number(expires), version: Number(version) };
+}
+export async function clearSession() {
+  const session = await signedSession();
+  if (session) {
+    const db = getDatabase(), ref = db.doc("system/auth");
+    await db.runTransaction(async (tx) => {
+      const data = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
+      if (session.version !== Number(data?.sessionVersion ?? 1)) return;
+      const now = Math.floor(Date.now() / 1000);
+      const revoked = (data?.revokedSessions ?? []).filter((entry) => entry.expires > now && entry.id !== session.id);
+      tx.set(ref, { revokedSessions: [...revoked, { id: session.id, expires: session.expires }] }, { merge: true });
     });
   }
-  if (!ok) {
-    await fail(`totp-${attemptKey}`);
-    return { required: true, ok: false, locked: false };
-  }
-  await getDatabase().doc(`loginAttempts/totp-${attemptKey}`).delete();
-  return { required: true, ok: true, locked: false };
+  (await cookies()).delete(COOKIE_NAME);
 }
-export async function clearSession() { (await cookies()).delete(COOKIE_NAME); }
-export async function isAuthenticated() {
-  const parts = (await cookies()).get(COOKIE_NAME)?.value.split(".") ?? [];
-  if (parts.length !== 4) return false;
-  const [role, expires, version, signature] = parts, payload = `${role}.${expires}.${version}`;
-  if (role !== "admin" || !Number.isSafeInteger(Number(expires)) || Number(expires) <= Math.floor(Date.now() / 1000) ||
-    !safeEqual(signature, sign(payload))) return false;
-  return Number(version) === (await state()).sessionVersion;
+export async function authenticatedVersion() {
+  const session = await signedSession();
+  if (!session) return undefined;
+  const auth = await state();
+  return session.version === auth.sessionVersion && !auth.revokedSessions?.some((entry) => entry.id === session.id) ? session.version : undefined;
 }
+export async function isAuthenticated() { return (await authenticatedVersion()) !== undefined; }
 export function validateNewPassword(password: string, username: string) {
   if (password.length < 12) return "short";
   if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) return "weak";
   if (username && password.toLowerCase().includes(username.toLowerCase())) return "username";
   return null;
 }
-export async function changePassword(current: string, next: string) {
+export async function changePassword(current: string, next: string, expectedVersion: number) {
   const db = getDatabase(), ref = db.doc("system/auth"), nextHash = await hashPassword(next);
   return db.runTransaction(async tx => {
     const data = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
-    if (!(await passwordMatches(current, data?.passwordHash))) return false;
+    if (Number(data?.sessionVersion ?? 1) !== expectedVersion || !(await passwordMatches(current, data?.passwordHash))) return false;
     tx.set(ref, { passwordHash: nextHash, sessionVersion: Number(data?.sessionVersion ?? 1) + 1 }, { merge: true });
     return true;
   });
 }
 
-export async function setLoginCredentials(username: string, password: string) {
+export async function setLoginCredentials(username: string, password: string, expectedVersion?: number) {
   if (!/^[A-Za-z0-9_.@-]{3,160}$/.test(username) || validateNewPassword(password, username)) throw new Error("invalid-credentials");
   const passwordHash = await hashPassword(password), db = getDatabase(), ref = db.doc("system/auth");
   await db.runTransaction(async (tx) => {
     const current = (await tx.get(ref)).data() as Partial<AuthState> | undefined;
+    if (expectedVersion !== undefined && Number(current?.sessionVersion ?? 1) !== expectedVersion) throw new Error("stale-session");
     tx.set(ref, { loginUsername: username, passwordHash, sessionVersion: Number(current?.sessionVersion ?? 1) + 1 }, { merge: true });
   });
 }

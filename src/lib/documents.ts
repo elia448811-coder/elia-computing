@@ -2,6 +2,8 @@ import "server-only";
 import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { PDFDocument, rgb } from "pdf-lib";
 import sanitizeHtml from "sanitize-html";
+import { cleanHtml } from "@/lib/document-html";
+export { cleanHtml } from "@/lib/document-html";
 import { getDatabase } from "@/lib/firebase-admin";
 import { normalizeSignatureImage } from "@/lib/signature-image";
 
@@ -62,28 +64,6 @@ export function signingBlockReason(document: Pick<SignatureDocument, "archivedAt
   if (document.archivedAt) return "archived";
   if (document.sourceType !== "pdf" && hasOpenDocumentFields(document.content ?? "")) return "open-fields";
   return null;
-}
-
-export function cleanHtml(content: string) {
-  return sanitizeHtml(content, {
-    allowedTags: ["h1", "h2", "h3", "p", "br", "hr", "strong", "b", "em", "i", "u", "ul", "ol", "li", "blockquote", "a", "span", "font", "table", "thead", "tbody", "tr", "th", "td"],
-    allowedAttributes: {
-      a: ["href", "target"],
-      span: ["class", "contenteditable", "data-field", "data-signer-id", "style", "id"],
-      font: ["size", "color"],
-      "*": ["style", "id"],
-    },
-    allowedClasses: { span: ["quick-field-token", "signature-field"] },
-    allowedStyles: {
-      "*": {
-        "text-align": [/^left$/, /^right$/, /^center$/],
-        color: [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
-        "background-color": [/^#[0-9a-f]{3,8}$/i, /^rgba?\([\d\s,.%]+\)$/i],
-        "font-size": [/^(?:8|9|10|11|12|14|16|18|20|22|24|28|32|36|48|72)pt$/],
-      },
-    },
-    allowedSchemes: ["http", "https", "mailto", "tel"],
-  });
 }
 
 function key() {
@@ -151,7 +131,8 @@ export async function createDocument(input: Omit<SignatureDocument, "id" | "toke
     phone: signer.phone?.replace(/[^0-9+ -]/g, "").trim().slice(0, 32),
     token: randomBytes(48).toString("base64url"),
   }));
-  if (signers?.some((signer) => !signer.name || !/^\d{9}$/.test(signer.identityNumber))) throw new Error("invalid-signers");
+  if (signers && (signers.length > 6 || new Set(signers.map((signer) => signer.id)).size !== signers.length ||
+      signers.some((signer) => !signer.name || !/^\d{9}$/.test(signer.identityNumber)))) throw new Error("invalid-signers");
   const document: SignatureDocument = {
     ...input, signers, sourceType: "html",
     content: cleanHtml(input.content ?? ""),
@@ -193,6 +174,17 @@ export async function updateHtmlDocument(id: string, input: Pick<SignatureDocume
     if (current.sourceType === "pdf" || current.signedAt || current.signers?.some((signer) => signer.signedAt)) throw new Error("document-locked");
     const signers = current.signers;
     const signer = signers?.[0];
+    if (!signer && current.tokenCipher &&
+        ((update.recipientName ?? current.recipientName) !== current.recipientName ||
+         (update.recipientEmail ?? current.recipientEmail ?? "") !== (current.recipientEmail ?? ""))) {
+      const delivery = await transaction.get(db.doc(`documentDeliveries/${createHash("sha256").update(`${id}/`).digest("hex")}`));
+      if (current.lastSentAt || current.firstViewedAt || delivery.exists) throw new Error("document-locked");
+      const token = randomBytes(48).toString("base64url");
+      const changed = { ...current, ...update, tokenCipher: encrypt(token) };
+      transaction.set(db.doc(`signatureDocuments/${signatureTokenHash(token)}`), changed);
+      transaction.delete(snapshot.ref);
+      return expose(changed);
+    }
     if (signer) {
       update.recipientName ??= signer.name;
       update.recipientEmail ??= signer.email;
@@ -239,7 +231,7 @@ export async function createPdfDocument(input: {
   if (!input.title || input.title.length > 160) throw new Error("invalid-title");
   if (input.pdfBytes.byteLength < 5 || input.pdfBytes.byteLength > MAX_PDF_BYTES) throw new Error("invalid-pdf-size");
   if (Buffer.from(input.pdfBytes.subarray(0, 5)).toString("ascii") !== "%PDF-") throw new Error("invalid-pdf");
-  if (input.signers.length < 1 || input.signers.length > 6 || new Set(input.signers.map((signer) => signer.id)).size !== input.signers.length) throw new Error("invalid-signers");
+  if (input.signers.length < 1 || input.signers.length > 6 || input.signers.some((signer) => !signer.id || signer.id.length > 100) || new Set(input.signers.map((signer) => signer.id)).size !== input.signers.length) throw new Error("invalid-signers");
   const parsedPdf = await PDFDocument.load(input.pdfBytes, { ignoreEncryption: false });
   const pageCount = parsedPdf.getPageCount(), signerIds = new Set(input.signers.map((signer) => signer.id));
   const fields = cleanFields(input.fields, signerIds, pageCount);
@@ -302,6 +294,10 @@ export async function signDocument(token: string, signerName: string, signature:
   const normalizedSignature = await normalizeSignatureImage(signature);
   if (!normalizedSignature) return false;
   return db.runTransaction(async (transaction) => {
+    if (tokenData) {
+      const grant = (await transaction.get(tokenSnapshot.ref)).data();
+      if (grant?.documentId !== tokenData.documentId || grant?.signerId !== tokenData.signerId) return false;
+    }
     const snapshot = await transaction.get(ref);
     if (!snapshot.exists) return false;
     const document = snapshot.data() as StoredDocument;
@@ -339,13 +335,13 @@ export function renderHtmlForSigner(document: SignatureDocument, currentSignerId
     const signer = signerId ? signerMap.get(signerId) : undefined;
     if (!signer) return whole;
     const name = escapeHtml(signer.name);
-    const identity = escapeHtml(signer.identityNumber);
+    const identity = signer.id === currentSignerId ? `<small>ת״ז ${escapeHtml(signer.identityNumber)}</small>` : "";
     if (signer.signature) {
-      return `<span class="signature-field signature-field-signed"><img src="${signer.signature}" alt="חתימת ${name}"><strong>${name}</strong><small>ת״ז ${identity}</small></span>`;
+      return `<span class="signature-field signature-field-signed"><img src="${escapeHtml(signer.signature)}" alt="חתימת ${name}"><strong>${name}</strong>${identity}</span>`;
     }
     const currentClass = signer.id === currentSignerId ? " signature-field-current" : "";
     const prompt = signer.id === currentSignerId ? "יש לחתום כאן" : "ממתין לחתימה";
-    return `<span class="signature-field${currentClass}"><strong>${prompt} · ${name}</strong><small>ת״ז ${identity}</small></span>`;
+    return `<span class="signature-field${currentClass}"><strong>${prompt} · ${name}</strong>${identity}</span>`;
   });
 }
 

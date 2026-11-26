@@ -13,6 +13,7 @@ export async function recordDocumentView(token: string) {
     const snapshot = await tx.get(found.docs[0].ref);
     const document = snapshot.data();
     if (!document || document.archivedAt) return false;
+    if (context.signer && !(await tx.get(db.doc(`signatureTokens/${signatureTokenHash(token)}`))).exists) return false;
     const now = new Date().toISOString();
     if (context.signer) {
       const target = document.signers.find((item: { id: string }) => item.id === context.signer!.id);
@@ -33,11 +34,14 @@ export async function reserveDocumentEmail(id: string, signerId: string) {
   const signer = signerId ? document.signers?.find((item) => item.id === signerId) : undefined;
   if (signerId && !signer || document.signers?.length && !signerId) throw new Error("unavailable");
   if (signer?.signedAt || document.signedAt) throw new Error("completed");
-  const email = signer?.email || document.recipientEmail;
-  const token = signer?.token || document.token;
-  if (!email || !token) throw new Error("recipient");
+  const email = signer ? signer.email : document.recipientEmail;
+  const token = signer ? signer.token : document.token;
+  if (!email || !/^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/.test(email) || !token) throw new Error("recipient");
   const ref = getDatabase().doc(`documentDeliveries/${createHash("sha256").update(`${id}/${signerId}`).digest("hex")}`);
   const delivery = await getDatabase().runTransaction(async (tx) => {
+    const currentDoc = (await tx.get(getDatabase().doc(`signatureDocuments/${signer ? id : signatureTokenHash(token)}`))).data();
+    if (!currentDoc || currentDoc.archivedAt) throw new Error("unavailable");
+    if (currentDoc.signedAt || (signer && currentDoc.signers?.find((s: { id: string }) => s.id === signerId)?.signedAt)) throw new Error("completed");
     if (signer) {
       const hash = signatureTokenHash(token);
       if (!(await tx.get(getDatabase().doc(`signatureTokens/${hash}`))).exists) throw new Error("unavailable");

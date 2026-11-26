@@ -1,7 +1,7 @@
 "use server";
 
 import { Resend } from "resend";
-import { changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
+import { authenticatedVersion, hashIdentifier, verifyLoginTwoFactor, changePassword, clearSession, createSession, isAuthenticated, validateNewPassword } from "@/lib/auth";
 import { createDocument, createPdfDocument, duplicateHtmlDocument, hasOpenDocumentFields, setDocumentArchived, updateHtmlDocument, type SignatureField } from "@/lib/documents";
 import { saveCustomers, updateCustomer } from "@/lib/customers";
 import { clearWorkspaceDraft } from "@/lib/workspace-drafts";
@@ -10,6 +10,7 @@ import { completeDocumentEmail, reserveDocumentEmail } from "@/lib/document-trac
 import { documentTemplates, type DocumentTemplateKey } from "@/data/documentTemplates";
 import { siteConfig } from "@/data/site";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export async function logoutAction() {
@@ -170,13 +171,18 @@ export async function updateCustomerAction(id: string, formData: FormData) {
 }
 
 export async function changePasswordAction(formData: FormData) {
-  if (!(await isAuthenticated())) redirect("/login");
+  const version = await authenticatedVersion();
+  if (version === undefined) redirect("/login");
   const currentPassword = String(formData.get("currentPassword") ?? "");
   const newPassword = String(formData.get("newPassword") ?? "");
   const confirmation = String(formData.get("confirmation") ?? "");
   if (newPassword !== confirmation) redirect("/dashboard?passwordError=mismatch#security");
   if (validateNewPassword(newPassword, process.env.ADMIN_USERNAME ?? "")) redirect("/dashboard?passwordError=weak#security");
-  if (!(await changePassword(currentPassword, newPassword))) redirect("/dashboard?passwordError=current#security");
-  await createSession();
+  if (!currentPassword || currentPassword.length > 256 || newPassword.length > 256) redirect("/dashboard?passwordError=current#security");
+  const ip = (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const proof = await verifyLoginTwoFactor(String(formData.get("totpCode") ?? "").trim(), hashIdentifier(ip), version);
+  if (!proof.ok) redirect("/dashboard?passwordError=totp#security");
+  if (!(await changePassword(currentPassword, newPassword, version))) redirect("/dashboard?passwordError=current#security");
+  await createSession(version + 1);
   redirect("/dashboard?passwordChanged=1#security");
 }
