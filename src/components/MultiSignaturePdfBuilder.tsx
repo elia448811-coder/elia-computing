@@ -48,7 +48,11 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
     try {
       const pdfjs = await import("pdfjs-dist");
       pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-      const loaded = await pdfjs.getDocument({ data: await next.arrayBuffer() }).promise;
+      const loaded = await pdfjs.getDocument({
+        data: await next.arrayBuffer(),
+        standardFontDataUrl: new URL("/pdfjs/standard_fonts/", window.location.origin).href,
+        useSystemFonts: false,
+      }).promise;
       if (generation !== loadGeneration.current) return;
       setFile(next); setPdf(loaded); setPage(1);
       if (reset) setFields([]);
@@ -133,6 +137,7 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
       canvas.width = Math.round(viewport.width * ratio); canvas.height = Math.round(viewport.height * ratio);
       canvas.style.width = `${viewport.width}px`; canvas.style.height = `${viewport.height}px`;
       const context = canvas.getContext("2d"); if (!context) return;
+      context.direction = "ltr"; context.textAlign = "left";
       task = pdfPage.render({ canvas, canvasContext: context, viewport, transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0] });
       await task.promise;
     }
@@ -166,7 +171,7 @@ export function MultiSignaturePdfBuilder({ customers }: { customers: Customer[] 
     <div hidden={step < 3}>
       {step === 4 ? <div className="mb-4 text-silver"><h3 className="text-xl font-bold text-white">{title}</h3><p className="mt-2 text-sm">{signers.map((signer) => signer.name).join(" · ")}</p><p className="mt-2 text-sm">בדקו שהחתימות ממוקמות נכון. שליחה במייל מתבצעת מהספרייה אחרי השמירה.</p></div> : <div className="mb-4 space-y-3"><p className="text-sm text-silver">בחרו חותם ולחצו על המקום במסמך שבו תופיע חתימתו.</p><div className="flex flex-wrap gap-2">{signers.map((signer, index) => <button className={`rounded-full border px-4 py-2 text-sm ${activeSigner === signer.id ? "border-electric bg-electric/15 text-white" : "border-white/15 text-silver"}`} type="button" key={signer.id} onClick={() => setActiveSigner(signer.id)}>{index + 1}. {signer.name || signer.label}{fields.some((field) => field.signerId === signer.id) ? " ✓" : ""}</button>)}</div><div className="flex flex-wrap gap-2">{([["קטן", 0.24, 0.08], ["רגיל", 0.3, 0.1], ["גדול", 0.42, 0.14]] as const).map(([label, width, height]) => <button type="button" key={label} className="rounded-lg border border-white/15 px-3 py-2 text-xs text-silver" onClick={() => { setFieldSize([width, height]); setFields((current) => current.map((field) => field.signerId === activeSigner ? { ...field, width, height, x: Math.min(field.x, 1 - width), y: Math.min(field.y, 1 - height) } : field)); }}>{label}</button>)}</div></div>}
       <div className="mb-3 flex items-center justify-between gap-2 text-sm text-silver"><button type="button" className="btn btn-secondary min-h-10" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>העמוד הקודם</button><span>עמוד {page} מתוך {pdf?.numPages ?? 0}</span><button type="button" className="btn btn-secondary min-h-10" disabled={!pdf || page >= pdf.numPages} onClick={() => setPage((current) => current + 1)}>העמוד הבא</button></div>
-      <div ref={stageRef} className="overflow-auto rounded-xl bg-black/15 p-2"><div onPointerDown={placeField} className={`relative mx-auto w-fit ${step === 3 ? "cursor-crosshair" : ""}`}><canvas ref={canvasRef} className="block max-w-full bg-white" />{fields.filter((field) => field.page === page).map((field) => { const index = signers.findIndex((signer) => signer.id === field.signerId); return <div key={field.id} className="pointer-events-none absolute flex items-center justify-center overflow-hidden rounded border-2 border-dashed bg-white/80 px-1 text-center text-xs font-bold text-ink" style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%`, borderColor: colors[index] }}>{signers[index]?.name || signers[index]?.label}</div>; })}</div></div>
+      <div ref={stageRef} className="overflow-auto rounded-xl bg-black/15 p-2"><div onPointerDown={placeField} className={`relative mx-auto w-fit ${step === 3 ? "cursor-crosshair" : ""}`}><canvas ref={canvasRef} dir="ltr" className="block max-w-full bg-white" />{fields.filter((field) => field.page === page).map((field) => { const index = signers.findIndex((signer) => signer.id === field.signerId); return <div key={field.id} className="pointer-events-none absolute flex items-center justify-center overflow-hidden rounded border-2 border-dashed bg-white/80 px-1 text-center text-xs font-bold text-ink" style={{ left: `${field.x * 100}%`, top: `${field.y * 100}%`, width: `${field.width * 100}%`, height: `${field.height * 100}%`, borderColor: colors[index] }}>{signers[index]?.name || signers[index]?.label}</div>; })}</div></div>
     </div>
     <input type="hidden" name="signatureFields" value={JSON.stringify(fields)} /><input type="hidden" name="signerCount" value={signers.length} /><input type="hidden" name="pdfDraftRevision" value={revision ?? ""} />
     <div className="flex flex-wrap justify-between gap-3 border-t border-white/10 pt-4"><button className="btn btn-secondary" type="button" disabled={step === 1 || pending} onClick={() => go(step - 1)}>חזרה</button>{step < 4 ? <button key="next" className="btn btn-primary" type="button" disabled={loading} onClick={() => go(step + 1)}>המשך</button> : <button key="save" className="btn btn-primary" type="submit" disabled={!pdf || !complete || conflict || pending}>{pending ? "שומר…" : "שמירה ויצירת קישורי חתימה"}</button>}</div>

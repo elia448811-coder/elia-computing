@@ -41,7 +41,11 @@ export function PdfDocumentPreview({ src, title }: { src: string; title: string 
         const pdfjs = await import("pdfjs-dist");
         if (disposed) return;
         pdfjs.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).toString();
-        loadingTask = pdfjs.getDocument({ data });
+        loadingTask = pdfjs.getDocument({
+          data,
+          standardFontDataUrl: new URL("/pdfjs/standard_fonts/", window.location.origin).href,
+          useSystemFonts: false,
+        });
         const document = await loadingTask.promise;
         if (disposed) return;
         setRendering(true);
@@ -91,6 +95,9 @@ export function PdfDocumentPreview({ src, title }: { src: string; title: string 
         canvas.style.height = `${viewport.height}px`;
         const context = canvas.getContext("2d");
         if (!context) throw new Error("canvas-unavailable");
+        // PDF coordinates stay left-to-right even inside the site's RTL layout.
+        context.direction = "ltr";
+        context.textAlign = "left";
         task = pdfPage.render({ canvas, canvasContext: context, viewport, transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0] });
         renderTaskRef.current = task;
         await task.promise;
@@ -142,7 +149,7 @@ export function PdfDocumentPreview({ src, title }: { src: string; title: string 
       <div ref={stageRef} className="min-h-60 overflow-auto bg-white p-3">
         {loading || rendering ? <p role="status" className="p-6 text-center text-sm text-silver">{loading ? "טוען את המסמך…" : "מציג את העמוד…"}</p> : null}
         {error ? <div role="alert" className="p-6 text-center"><p className="text-sm text-red-200">{error}</p><button type="button" className="btn btn-secondary mt-4 text-sm" onClick={() => setRetry((value) => value + 1)}>ניסיון נוסף</button></div> : null}
-        <canvas ref={canvasRef} role="img" aria-label={`${title}, עמוד ${page}`} aria-describedby={linkId} className={`${loading || rendering || error ? "hidden" : "block"} mx-auto max-w-full bg-white`}>לקריאת המסמך אפשר לפתוח את ה־PDF בחלון נפרד באמצעות הקישור שמעל התצוגה.</canvas>
+        <canvas ref={canvasRef} dir="ltr" role="img" aria-label={`${title}, עמוד ${page}`} aria-describedby={linkId} className={`${loading || rendering || error ? "hidden" : "block"} mx-auto max-w-full bg-white`}>לקריאת המסמך אפשר לפתוח את ה־PDF בחלון נפרד באמצעות הקישור שמעל התצוגה.</canvas>
       </div>
     </section>
   );
