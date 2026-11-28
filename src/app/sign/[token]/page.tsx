@@ -5,6 +5,7 @@ import { HandSignaturePad } from "@/components/HandSignaturePad";
 import { Logo } from "@/components/Logo";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
 import { DocumentViewTracker } from "@/components/DocumentViewTracker";
+import { PdfDocumentPreview } from "@/components/PdfDocumentPreview";
 import { documentRevision, getSignerByToken, renderHtmlForSigner, signingBlockReason } from "@/lib/documents";
 import { signDocumentAction } from "./actions";
 
@@ -44,7 +45,7 @@ export default async function SignPage({ params, searchParams }: {
           {isPdf ? (
             <div className="my-7">
               <p className="mb-3 rounded-xl bg-sky-400/10 p-3 text-sm text-sky-100">אזור החתימה שלך מסומן במסגרת כחולה במסמך.</p>
-              <iframe title={`תצוגת ${document.title}`} src={`/api/sign/${token}/pdf?preview=1`} className="h-[68vh] min-h-[520px] w-full rounded-2xl border border-white/15 bg-white" />
+              <PdfDocumentPreview src={`/api/sign/${token}/pdf?preview=1`} title={document.title} />
             </div>
           ) : <div className="document-preview my-8 rounded-2xl bg-white p-5 leading-8 text-slate-900 sm:p-8" dangerouslySetInnerHTML={{ __html: renderedContent }} />}
 

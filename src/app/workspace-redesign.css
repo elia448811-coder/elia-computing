@@ -57,6 +57,7 @@
 .workspace [class*="border-white/"], .sign-page [class*="border-white/"] { border-color: var(--ws-line); }
 .workspace [class*="bg-white/"], .sign-page [class*="bg-white/"] { background-color: var(--ws-soft); }
 .workspace :is(.text-green-100, .text-green-200), .sign-page :is(.text-green-100, .text-green-200, [class*="text-green-200/"]) { color: var(--ws-success); }
+.workspace .text-emerald-100 { color: var(--ws-success); }
 .workspace :is(.text-amber-50, .text-amber-100, [class*="text-amber-100/"]), .sign-page .text-amber-100 { color: var(--ws-warning); }
 .workspace :is(.text-red-100, .text-red-200), .q-login-panel .text-red-200, .sign-page :is(.text-red-100, .text-red-200) { color: var(--ws-danger); }
 .workspace :is(.text-sky-100, [class*="text-sky-100/"]), .sign-page .text-sky-100 { color: var(--ws-info); }
