@@ -41,6 +41,10 @@ function safeEqual(a: string, b: string) {
   const left = Buffer.from(a), right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
 }
+function credentialsEqual(submitted: string, expected: string) {
+  const digest = (value: string) => createHash("sha256").update(value).digest();
+  return timingSafeEqual(digest(submitted), digest(expected));
+}
 function sign(value: string) { return createHmac("sha256", secret()).update(value).digest("base64url"); }
 export function hashIdentifier(value: string) { return createHmac("sha256", secret()).update(value).digest("hex"); }
 export type SecurityActivity = { id: string; createdAt: string; kind: "login"; device: string; ipHint: string };
@@ -135,7 +139,7 @@ async function hashPassword(password: string) {
   return `scrypt:${salt}:${derived.toString("hex")}`;
 }
 async function passwordMatches(password: string, encoded?: string) {
-  if (!encoded) return Boolean(password && process.env.ADMIN_PASSWORD && safeEqual(password, process.env.ADMIN_PASSWORD));
+  if (!encoded) return Boolean(password && process.env.ADMIN_PASSWORD && credentialsEqual(password, process.env.ADMIN_PASSWORD));
   const [algorithm, salt, expected] = encoded.split(":");
   if (algorithm !== "scrypt" || !salt || !expected) return false;
   const actual = (await scrypt(password, salt, 64) as Buffer).toString("hex");
@@ -157,7 +161,10 @@ export async function authenticate(username: string, password: string, key: stri
   if (!(await reservePasswordAttempt(key))) return { ok: false as const, locked: true };
   const auth = await state();
   const expected = auth.loginUsername || process.env.ADMIN_USERNAME || "";
-  if (!expected || !password || !safeEqual(username, expected) || !(await passwordMatches(password, auth.passwordHash))) {
+  const validUsername = credentialsEqual(username, expected);
+  // One account has one verifier. Run it for every admitted username.
+  const validPassword = await passwordMatches(password, auth.passwordHash);
+  if (!expected || !password || !validUsername || !validPassword) {
     return { ok: false as const, locked: false };
   }
   await getDatabase().doc(`loginAttempts/${key}`).delete();
@@ -263,16 +270,24 @@ export async function cancelTwoFactorEnrollment(sessionId: string, expectedVersi
   });
 }
 
+// Reuse the existing management window for every proof of the enrolled factor.
+function accountFactorWindow(auth: Partial<AuthState>) {
+  const now = Date.now();
+  const expiresAt = Number(auth.totpManagementExpiresAt ?? 0);
+  return expiresAt > now
+    ? { failures: Number(auth.totpManagementFailures ?? 0), expiresAt }
+    : { failures: 0, expiresAt: now + LOCK_MS };
+}
+
 export async function disableTwoFactor(code: string, expectedVersion?: number) {
   const db = getDatabase(), ref = db.doc("system/auth");
   return db.runTransaction(async (transaction) => {
     const data = (await transaction.get(ref)).data() as Partial<AuthState> | undefined;
     if ((expectedVersion !== undefined && Number(data?.sessionVersion ?? 1) !== expectedVersion) || !data?.totpEnabled || !data.totpSecretCipher) return false;
-    const expiresAt = Number(data.totpManagementExpiresAt ?? 0);
-    const failures = expiresAt > Date.now() ? Number(data.totpManagementFailures ?? 0) : 0;
+    const { failures, expiresAt } = accountFactorWindow(data);
     if (failures >= MAX_ATTEMPTS) return false;
     if (unusedTotpCounter(decryptSecret(data.totpSecretCipher), code, data.lastLoginTotpCounter ?? -1) === undefined) {
-      transaction.set(ref, { totpManagementFailures: failures + 1, totpManagementExpiresAt: expiresAt > Date.now() ? expiresAt : Date.now() + LOCK_MS }, { merge: true });
+      transaction.set(ref, { totpManagementFailures: failures + 1, totpManagementExpiresAt: expiresAt }, { merge: true });
       return false;
     }
     transaction.set(ref, {
@@ -305,19 +320,23 @@ export async function verifyLoginTwoFactor(code: string, attemptKey: string, exp
     const attempts = (await tx.get(limit)).data();
     const active = Number(attempts?.expiresAt ?? 0) > Date.now();
     const count = active ? Number(attempts?.count ?? 0) : 0;
-    if (count >= MAX_ATTEMPTS) return { ...denied, locked: true };
+    const account = accountFactorWindow(auth);
+    if (count >= MAX_ATTEMPTS || account.failures >= MAX_ATTEMPTS) return { ...denied, locked: true };
     const counter = unusedTotpCounter(decryptSecret(auth.totpSecretCipher), code, auth.lastLoginTotpCounter ?? -1);
+    let proof: Pick<AuthState, "lastLoginTotpCounter" | "recoveryCodeHashes">;
     if (counter !== undefined) {
-      tx.set(ref, { lastLoginTotpCounter: counter }, { merge: true });
+      proof = { lastLoginTotpCounter: counter };
     } else {
       const hashes = auth.recoveryCodeHashes ?? [];
       const hash = normalizeRecoveryCode(code).length === 12 ? recoveryCodeHash(code) : "";
       if (!hash || !hashes.some((value) => safeEqual(value, hash))) {
         tx.set(limit, { count: count + 1, expiresAt: active ? attempts!.expiresAt : Date.now() + LOCK_MS });
+        tx.set(ref, { totpManagementFailures: account.failures + 1, totpManagementExpiresAt: account.expiresAt }, { merge: true });
         return denied;
       }
-      tx.set(ref, { recoveryCodeHashes: hashes.filter((value) => !safeEqual(value, hash)) }, { merge: true });
+      proof = { recoveryCodeHashes: hashes.filter((value) => !safeEqual(value, hash)) };
     }
+    tx.set(ref, { ...proof, totpManagementFailures: 0, totpManagementExpiresAt: 0 }, { merge: true });
     tx.delete(limit);
     return { ...denied, ok: true };
   });

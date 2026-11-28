@@ -111,6 +111,58 @@ test('current-factor proof allows removal and management lock state is enforced'
   assert.equal(db.records.get('system/auth').totpEnabled, false);
 });
 
+test('the account MFA window spans login sources, recovery and factor management', async () => {
+  const db = new MemoryDatabase(), { auth } = modules(db);
+  const enrollment = await auth.beginTwoFactorEnrollment('fixture-session', 1);
+  const confirmed = await auth.confirmTwoFactorEnrollment(authenticatorCode(enrollment.secretKey), 'fixture-session', 1);
+  assert.ok(confirmed.ok);
+  const state = db.doc('system/auth');
+  const version = confirmed.sessionVersion, recovery = confirmed.recoveryCodes[0];
+  // Existing management failures must count immediately after upgrading.
+  const expiresAt = Date.now() + 60000;
+  await state.set({ totpManagementFailures: 3, totpManagementExpiresAt: expiresAt }, { merge: true });
+  assert.equal(await auth.disableTwoFactor('invalid', version), false);
+  assert.equal((await auth.verifyLoginTwoFactor('invalid', 'fixture-a', version)).ok, false);
+  const locked = (await state.get()).data();
+  assert.equal(locked.totpManagementFailures, 5);
+  assert.equal(locked.totpManagementExpiresAt, expiresAt);
+  assert.equal(db.records.get('loginAttempts/totp-fixture-a').count, 1);
+  assert.equal((await auth.verifyLoginTwoFactor(recovery, 'fixture-b', version)).locked, true);
+  assert.equal(await auth.disableTwoFactor(authenticatorCode(enrollment.secretKey, 1), version), false);
+  assert.deepEqual((await state.get()).data(), locked);
+
+  await state.set({ totpManagementExpiresAt: Date.now() - 1 }, { merge: true });
+  assert.equal((await auth.verifyLoginTwoFactor(recovery, 'fixture-b', version)).ok, true);
+  const fresh = (await state.get()).data();
+  assert.equal(fresh.totpManagementFailures, 0);
+  assert.equal(fresh.totpManagementExpiresAt, 0);
+  assert.equal(fresh.recoveryCodeHashes.length, 7);
+  assert.equal((await auth.verifyLoginTwoFactor(recovery, 'fixture-b', version)).ok, false);
+  assert.equal((await state.get()).data().totpManagementFailures, 1);
+});
+
+test('stored credentials perform one password derivation per admitted login, regardless of username', async (t) => {
+  const derivations = t.mock.method(crypto, 'scrypt');
+  const db = new MemoryDatabase(), { auth } = modules(db);
+  const password = 'Fixture-Password-987!';
+  await auth.setLoginCredentials('fixture-admin', password);
+  for (const [username, candidate, ok] of [
+    ['unknown', 'incorrect', false],
+    ['fixture-admin', 'incorrect', false],
+    ['unknown', password, false],
+    ['fixture-admin', password, true],
+  ]) {
+    const before = derivations.mock.callCount();
+    const result = await auth.authenticate(username, candidate, 'fixture');
+    assert.deepEqual(result, ok ? { ok, locked: false, sessionVersion: 2 } : { ok, locked: false });
+    assert.equal(derivations.mock.callCount() - before, 1);
+  }
+  await db.doc('loginAttempts/fixture').set({ count: 5, expiresAt: Date.now() + 60000 });
+  const before = derivations.mock.callCount();
+  assert.equal((await auth.authenticate('fixture-admin', password, 'fixture')).locked, true);
+  assert.equal(derivations.mock.callCount(), before);
+});
+
 test('unsent signer correction rotates the personal link and synchronizes the recipient', async () => {
   const { documents } = modules(new MemoryDatabase());
   const doc = await documents.createDocument({ title: 'Draft', content: '<p>Terms</p>', signers: [signer('one')] });
