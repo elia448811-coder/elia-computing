@@ -5,10 +5,12 @@ import { Footer } from "@/components/Footer";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { brandIconUrl } from "@/data/brand";
 import { siteConfig } from "@/data/site";
+import { themeInitializationScript } from "@/lib/theme";
 import "./globals.css";
 import "./interface-tokens.css";
 import "./public-redesign.css";
 import "./workspace-redesign.css";
+import "./dark-mode.css";
 
 const heebo = Heebo({
   variable: "--font-heebo",
@@ -104,7 +106,8 @@ function JsonLd() {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${displayFont.variable} h-full`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${displayFont.variable} h-full`} suppressHydrationWarning>
+      <head><script id="theme-initialization" dangerouslySetInnerHTML={{ __html: themeInitializationScript }} /></head>
       <body className="min-h-full font-sans antialiased">
         <JsonLd />
         <a

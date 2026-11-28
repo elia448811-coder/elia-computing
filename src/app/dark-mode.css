@@ -1,0 +1,173 @@
+/* Screen themes leave printed documents in their original light palette. */
+@media screen {
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --theme-on-accent: #102b2d;
+    --ui-bg: #0b171d;
+    --ui-paper: #13252e;
+    --ui-ink: #e6f1f5;
+    --ui-text: #c6d7de;
+    --ui-muted: #a1b7c1;
+    --ui-line: #2d4652;
+    --ui-accent: #74d3bd;
+    --ui-accent-hover: #a2e8d6;
+    --ui-accent-soft: #183d3d;
+    --ui-shadow: 0 16px 48px rgb(0 0 0 / 18%);
+    --public-paper: #0b171d;
+    --public-surface: #13252e;
+    --public-ink: #e6f1f5;
+    --public-muted: #a1b7c1;
+    --public-line: #2d4652;
+    --public-teal: #74d3bd;
+    --public-teal-deep: #a2e8d6;
+    --public-mint: #183d3d;
+    --public-dark: #0b2428;
+    --public-on-dark: #e6f1f5;
+    --public-dark-muted: #a1b7c1;
+    --public-error: #ffb3bc;
+    --public-shadow: 0 22px 65px rgb(0 0 0 / 18%);
+    --ws-ink: #e6f1f5;
+    --ws-muted: #a1b7c1;
+    --ws-accent: #74d3bd;
+    --ws-accent-hover: #a2e8d6;
+    --ws-accent-light: #183d3d;
+    --ws-canvas: #0b171d;
+    --ws-paper: #13252e;
+    --ws-line: #2d4652;
+    --ws-soft: #1a303a;
+    --ws-dark: #10352f;
+    --ws-on-dark: #e6f1f5;
+    --ws-on-dark-muted: #a1b7c1;
+    --ws-success: #9bdac0;
+    --ws-success-bg: #17382f;
+    --ws-warning: #f5ce92;
+    --ws-warning-bg: #3b3021;
+    --ws-danger: #ffb3bc;
+    --ws-danger-bg: #3b242c;
+    --ws-info: #a7caff;
+    --ws-info-bg: #203547;
+    --ws-shadow: 0 8px 26px rgb(0 0 0 / 15%);
+    --ws-shadow-raised: 0 18px 60px rgb(0 0 0 / 25%);
+    --ws-overlay: rgb(0 0 0 / 65%);
+    --electric: #74d3bd;
+    --electric-bright: #74d3bd;
+    --electric-deep: #a2e8d6;
+    --ink: #0b171d;
+    --white: #e6f1f5;
+    --silver: #c6d7de;
+    --silver-muted: #a1b7c1;
+    --navy: #1a303a;
+    --navy-soft: #13252e;
+    --glass: #13252e;
+    --glass-border: #2d4652;
+  }
+
+  html[data-theme="dark"] :is(.workspace, .quotes-app, .sign-page) { --silver: var(--ui-text); }
+  html[data-theme="dark"] .site-header,
+  html[data-theme="dark"] .site-header.site-header-solid { background: rgb(11 23 29 / 96%); }
+  html[data-theme="dark"] .site-header .brand-mark,
+  html[data-theme="dark"] .sign-page img[alt="אליה שירותי מחשוב"] { filter: brightness(0) invert(1); }
+  html[data-theme="dark"] .site-main :is(.project-tabi, .project-zohar, .project-couples) .project-art { background: var(--public-mint); }
+  html[data-theme="dark"] .site-main .project-screenshot { box-shadow: var(--public-shadow); }
+
+  /* Button labels have their own token instead of sharing a panel's background. */
+  html[data-theme="dark"] :is(.q-primary, .workspace-brand-symbol, .workspace button.bg-electric),
+  html[data-theme="dark"] .workspace .btn-primary,
+  html[data-theme="dark"] .sign-page .btn-primary,
+  html[data-theme="dark"] .q-login-panel .btn-primary,
+  html[data-theme="dark"] .site-main .btn-primary,
+  html[data-theme="dark"] .site-header .btn-primary,
+  html[data-theme="dark"] .site-header .mobile-navigation .btn-primary,
+  html[data-theme="dark"] .site-main #packages article > span:first-child,
+  html[data-theme="dark"] .site-main #packages article .text-ink,
+  html[data-theme="dark"] .stone-card-footer > a:hover { color: var(--theme-on-accent); }
+
+  html[data-theme="dark"] .workspace-input,
+  html[data-theme="dark"] .q-input,
+  html[data-theme="dark"] .sign-page input:not([type="checkbox"]):not([type="hidden"]) { border-color: var(--ws-line); }
+  html[data-theme="dark"] .workspace-input::placeholder,
+  html[data-theme="dark"] .q-input::placeholder { color: var(--ws-muted); }
+  html[data-theme="dark"] .workspace-nav-item,
+  html[data-theme="dark"] .q-metric > span { color: var(--ws-muted); }
+  html[data-theme="dark"] .q-label,
+  html[data-theme="dark"] .q-checkbox { color: var(--ui-text); }
+  html[data-theme="dark"] .q-secondary:hover { border-color: var(--ws-accent); }
+  html[data-theme="dark"] .q-error,
+  html[data-theme="dark"] .q-success,
+  html[data-theme="dark"] .q-empty-icon,
+  html[data-theme="dark"] .q-step,
+  html[data-theme="dark"] .q-save-bar { border-color: var(--ws-line); }
+  html[data-theme="dark"] .q-table th { background: var(--ws-soft); color: var(--ws-muted); }
+  html[data-theme="dark"] .q-table td { color: var(--ui-text); border-color: var(--ws-line); }
+  html[data-theme="dark"] .q-table tr:hover td { background: var(--ws-soft); }
+  html[data-theme="dark"] .q-status-draft { color: var(--ws-muted); background: var(--ws-soft); }
+  html[data-theme="dark"] .workspace .workspace-nav-active { color: var(--ws-accent); border-color: var(--ws-accent); }
+  html[data-theme="dark"] .workspace .workspace-navigation { scrollbar-color: var(--ws-muted) transparent; }
+  html[data-theme="dark"] .q-login-brand .q-login-monogram,
+  html[data-theme="dark"] .q-login-story-footer { border-color: var(--ws-line); }
+  html[data-theme="dark"] .sign-page [class*="border-sky-"] { border-color: var(--ws-info); }
+
+  /* Google branding, QR codes and handwritten ink retain a white backing. */
+  html[data-theme="dark"] .q-login-panel .btn.bg-white { background: #ffffff; color: #142a36; color-scheme: only light; }
+  html[data-theme="dark"] .q-login-panel .btn.bg-white > span { background: #ffffff; color: #285c94; border-color: #dbe4e7; }
+  html[data-theme="dark"] .workspace img[alt^="QR "],
+  html[data-theme="dark"] canvas[aria-label="משטח לציור חתימה ביד"] { background: #ffffff; color-scheme: only light; forced-color-adjust: none; }
+
+  /* A PDF's page stays white; the surrounding page controls follow the theme. */
+  html[data-theme="dark"] .sign-page section[aria-busy] { background: var(--ws-paper); }
+  html[data-theme="dark"] .sign-page section[aria-busy] > div:last-child {
+    --silver: #405864;
+    --silver-muted: #60727c;
+    --ws-danger: #a13142;
+    background: #ffffff;
+    color: #142a36;
+    color-scheme: only light;
+    forced-color-adjust: none;
+  }
+  html[data-theme="dark"] .sign-page section[aria-busy] canvas { background: #ffffff; color-scheme: only light; forced-color-adjust: none; }
+
+  /* These are documents, including their on-screen previews, rather than UI panels. */
+  html[data-theme="dark"] :is(.quote-paper, .document-reading-paper, .document-paper, .document-preview, .document-print-root) {
+    --theme-on-accent: #ffffff;
+    --electric: #0c6d62;
+    --electric-bright: #0c6d62;
+    --electric-deep: #07584f;
+    --ink: #142a36;
+    --white: #142a36;
+    --silver: #405864;
+    --silver-muted: #60727c;
+    --navy: #f4f7f8;
+    --navy-soft: #ffffff;
+    --glass: #ffffff;
+    --glass-border: #dbe4e7;
+    --public-paper: #f4f7f8;
+    --public-surface: #ffffff;
+    --public-ink: #142a36;
+    --public-muted: #536772;
+    --public-line: #dbe5e8;
+    --public-teal: #0c6d62;
+    --public-teal-deep: #084f48;
+    --public-mint: #e4efeb;
+    --ws-ink: #142a36;
+    --ws-muted: #60727c;
+    --ws-accent: #0c6d62;
+    --ws-accent-hover: #07584f;
+    --ws-accent-light: #e5f2ed;
+    --ws-canvas: #f4f7f8;
+    --ws-paper: #ffffff;
+    --ws-line: #dbe4e7;
+    --ws-soft: #edf2f4;
+    --ws-success: #176449;
+    --ws-success-bg: #e9f5ee;
+    --ws-warning: #82551d;
+    --ws-warning-bg: #fff5e4;
+    --ws-danger: #a13142;
+    --ws-danger-bg: #fff0f1;
+    --ws-info: #285c94;
+    --ws-info-bg: #edf3fc;
+    background: #ffffff;
+    color: #142a36;
+    color-scheme: only light;
+    forced-color-adjust: none;
+  }
+}

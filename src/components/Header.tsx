@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { navLinks } from "@/data/navigation";
 import { siteConfig } from "@/data/site";
 
@@ -74,6 +75,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <Link href="/login" className="hidden rounded-full px-3 py-2 text-sm font-semibold text-silver hover:text-white md:inline-flex">
             ניהול העסק
           </Link>
