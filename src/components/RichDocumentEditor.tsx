@@ -393,7 +393,7 @@ export function RichDocumentEditor({
   );
 
   return (
-    <div className={fullscreen ? "fixed inset-0 z-[100] overflow-y-auto bg-[#030914] p-3 sm:p-6" : "rounded-[28px] border border-white/10 bg-[#050d19]/65 p-3 shadow-[0_28px_80px_rgba(0,0,0,.28)] sm:p-5"}>
+    <div className={`document-editor-shell ${fullscreen ? "fixed inset-0 z-[100] overflow-y-auto p-3 sm:p-6" : "rounded-2xl border border-white/10 p-3 sm:p-5"}`}>
       <div className="space-y-5">
         <section className="rounded-2xl border border-electric/15 bg-[linear-gradient(135deg,rgba(69,200,255,.08),rgba(255,255,255,.025))] p-4 sm:p-5">
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">

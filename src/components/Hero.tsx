@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { projects } from "@/data/projects";
 
 const areas = [
@@ -13,31 +14,32 @@ export function Hero() {
       <div className="container-site">
         <div className="warm-hero-layout">
           <div className="warm-hero-copy">
+            <p className="studio-intro">אליה שירותי מחשוב</p>
             <h1 id="hero-title" className="warm-hero-title">
-              הטכנולוגיה<br />של העסק.<br /><span>בגובה העיניים.</span>
+              הטכנולוגיה של העסק.<br /><span>בגובה העיניים.</span>
             </h1>
             <p className="warm-hero-description">
               מחשבים, רשתות, אתרים ומערכות. אני כאן כדי להבין מה אתם צריכים,
               ולעזור לכם למצוא את הפתרון המתאים.
             </p>
-            <a href="#contact" className="btn btn-primary warm-hero-cta">
+            <div className="studio-hero-actions"><a href="#contact" className="btn btn-primary warm-hero-cta">
               ספרו לי על העסק
-            </a>
+            </a><Link href="/projects" className="studio-text-link">לפרויקטים שלי <span aria-hidden="true">↗</span></Link></div>
           </div>
           <div className="warm-hero-visual">
             <figure className="stone-card">
-              <span className="stone-card-label">פרויקט לדוגמה</span>
+              <span className="stone-card-label">מערכת שנבנתה לצורך אמיתי</span>
               <Image
                 className="stone-card-image"
                 src={projects[0].image}
                 alt="צילום מסך של מערכת חנה לניהול עסקי"
                 width={1440}
                 height={900}
-                sizes="(max-width: 640px) 212px, 298px"
+                sizes="(max-width: 760px) 94vw, 52vw"
                 priority
                 unoptimized
               />
-              <figcaption className="stone-card-footer">חנה: מערכת לניהול עסקי שפיתחתי</figcaption>
+              <figcaption className="stone-card-footer"><div><strong>חנה</strong><span>מערכת לניהול עסקי שפיתחתי</span></div><a href={projects[0].href} target="_blank" rel="noopener noreferrer" aria-label="למערכת של חנה (נפתח בחלון חדש)">↗</a></figcaption>
             </figure>
           </div>
         </div>

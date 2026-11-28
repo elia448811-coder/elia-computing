@@ -25,6 +25,7 @@ export function Footer() {
               <p className="text-sm font-semibold text-electric-bright">שירותי מחשוב</p>
             </div>
           </div>
+          <p className="footer-intro">מחשבים, רשתות ופיתוח.<br />פתרונות שמתאימים לעסק שלכם.</p>
         </div>
 
         <div>

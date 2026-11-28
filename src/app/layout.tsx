@@ -6,6 +6,9 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { brandIconUrl } from "@/data/brand";
 import { siteConfig } from "@/data/site";
 import "./globals.css";
+import "./interface-tokens.css";
+import "./public-redesign.css";
+import "./workspace-redesign.css";
 
 const heebo = Heebo({
   variable: "--font-heebo",

@@ -18,6 +18,21 @@ import type { SignatureDocument } from "@/lib/documents";
 type Tab = "quotes" | "overview" | "create" | "pdf" | "documents" | "customers" | "security";
 type Query = { draftReceipt?: string; created?: string; duplicated?: string; pdfCreated?: string; pdfError?: string; error?: string; sent?: string; mailError?: string };
 const tabs: Array<[Tab, string]> = [["quotes", "הצעות מחיר"], ["overview", "סקירה"], ["create", "מסמך חדש"], ["pdf", "העלאת PDF"], ["documents", "ספריית מסמכים"], ["customers", "לקוחות"], ["security", "אבטחת חשבון"]];
+
+function WorkspaceIcon({ name }: { name: Tab | "logout" | "external" }) {
+  const paths: Record<Tab | "logout" | "external", string> = {
+    quotes: "M7 3h8l4 4v14H5V3h2m8 0v5h4M8 12h8M8 16h5",
+    overview: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
+    create: "M14 3H5v18h14V8m-5-5v5h5M9 14h6M12 11v6",
+    pdf: "M5 16v5h14v-5M12 3v13m-5-5 5 5 5-5",
+    documents: "M3 7h7l2-3h9v17H3V7m0 4h18",
+    customers: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8m7-7a4 4 0 0 1 0 7m3 4a4 4 0 0 1 3 4v2",
+    security: "M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4m-4 9 3 3 5-6",
+    logout: "M9 3H4v18h5m5-14 5 5-5 5m-6-5h11",
+    external: "M14 3h7v7m0-7L10 14M10 3H3v18h18v-7",
+  };
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} /></svg>;
+}
 const MultiSignaturePdfBuilder = dynamic(() => import("@/components/MultiSignaturePdfBuilder").then((module) => module.MultiSignaturePdfBuilder), { ssr: false, loading: () => <p className="p-8 text-silver">טוען את כלי ה־PDF…</p> });
 function tabFromHash(): Tab { const value = window.location.hash.replace("#", "") as Tab; return tabs.some(([tab]) => tab === value) ? value : "quotes"; }
 const mailErrors: Record<string, string> = { cooldown: "המסמך נשלח בחמש הדקות האחרונות. אפשר לשלוח תזכורת בהמשך.", completed: "החתימה כבר הושלמה. אין צורך בתזכורת.", recipient: "יש להשלים כתובת אימייל לחותם לפני השליחה.", config: "שליחת המייל אינה זמינה כרגע. אפשר להעתיק את הקישור האישי.", unavailable: "המסמך אינו זמין לשליחה." };
@@ -43,15 +58,22 @@ export function DashboardWorkspace({ documents, customers, siteUrl, twoFactorEna
   function open(tab: Tab, filter?: LibraryFilter) { if (filter) { setLibraryFilter(filter); setDocumentId(""); } if (tab === "create") setCreationVisited(true); setActiveTab(tab); window.history.replaceState(null, "", `#${tab}`); window.scrollTo({ top: 0, behavior: "smooth" }); }
   function openDocument(id: string) { setDocumentId(id); setLibraryFilter("all"); open("documents"); }
   function createForCustomer(selected: Customer) { setCustomer(selected); setCreateVersion((value) => value + 1); open("create"); }
-  return <div className="container-site workspace">
-    <header className="rounded-2xl border border-white/15 bg-white/[0.025] p-5 sm:p-7"><div className="flex flex-wrap justify-between gap-5"><div><p className="text-sm font-bold text-electric-bright">אליה שירותי מחשוב · האזור האישי</p><h1 className="mt-2 text-3xl font-black text-white">סביבת העבודה שלך</h1><p className="mt-2 text-sm text-silver-muted">הצעות מחיר, מסמכים ולקוחות. הכול במקום אחד.</p></div><div className="flex items-start gap-2">{activeTab !== "quotes" ? <button type="button" onClick={() => open("create")} className="btn btn-primary text-sm">+ מסמך חדש</button> : null}<form action={logoutAction}><button className="btn btn-secondary text-sm">יציאה</button></form></div></div>
-      <div hidden={activeTab === "quotes"} className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">{([["ממתינים לחתימה", stats.waiting, "waiting"], ["הושלמו", stats.completed, "completed"], ["מסמכים פעילים", stats.active, "active"]] as const).map(([label, value, filter]) => <button key={label} type="button" className="rounded-xl border border-white/10 p-3 text-right text-silver hover:border-electric/40" onClick={() => open("documents", filter)}><strong className="block text-2xl text-white">{value}</strong><span className="text-xs">{label}</span></button>)}<button type="button" className="rounded-xl border border-white/10 p-3 text-right text-silver hover:border-electric/40" onClick={() => open("customers")}><strong className="block text-2xl text-white">{customers.length}</strong><span className="text-xs">לקוחות</span></button></div>
-    </header>
+  return <div className="container-site workspace workspace-shell">
+    <aside className="workspace-sidebar no-print">
+      <div className="workspace-sidebar-heading"><span className="workspace-brand-symbol" aria-hidden="true">E</span><div><strong>ניהול העסק</strong><span>אליה שירותי מחשוב</span></div></div>
+      <a href="#workspace-content" className="sr-only focus:not-sr-only" onClick={(event) => { event.preventDefault(); document.getElementById("workspace-content")?.focus(); }}>דילוג לסביבת העבודה</a>
+      <nav className="workspace-navigation" aria-label="ניווט באזור האישי">
+        {tabs.map(([tab, label]) => <button key={tab} type="button" aria-current={activeTab === tab ? "page" : undefined} onClick={() => open(tab)} className={`workspace-nav-item ${activeTab === tab ? "workspace-nav-active" : ""}`}><WorkspaceIcon name={tab} /><span>{label}</span>{tab === "documents" && stats.waiting > 0 ? <span className="workspace-nav-count" aria-label={`${stats.waiting} ממתינים לחתימה`}>{stats.waiting}</span> : null}</button>)}
+      </nav>
+      <div className="workspace-sidebar-footer"><Link href="/work-agreement"><WorkspaceIcon name="external" /><span>מסמכים ציבוריים</span></Link><form action={logoutAction}><button type="submit"><WorkspaceIcon name="logout" /><span>יציאה מהחשבון</span></button></form></div>
+    </aside>
+    <div className="workspace-main" id="workspace-content" tabIndex={-1}>
+    <header className="workspace-topbar no-print"><div><p>סביבת העבודה שלך</p><h1>{tabs.find(([tab]) => tab === activeTab)?.[1]}</h1></div><div className="workspace-topbar-actions">{activeTab !== "quotes" && activeTab !== "create" ? <button type="button" onClick={() => open("create")} className="btn btn-primary text-sm"><span aria-hidden="true">+</span> מסמך חדש</button> : null}<span className="workspace-account-avatar" title="אליה שירותי מחשוב" aria-label="האזור האישי של אליה">א</span></div></header>
+    <div hidden={activeTab === "quotes"} className="workspace-summary no-print">{([["ממתינים לחתימה", stats.waiting, "waiting"], ["הושלמו", stats.completed, "completed"], ["מסמכים פעילים", stats.active, "active"]] as const).map(([label, value, filter]) => <button key={label} type="button" onClick={() => open("documents", filter)}><span>{label}</span><strong>{value}</strong></button>)}<button type="button" onClick={() => open("customers")}><span>לקוחות</span><strong>{customers.length}</strong></button></div>
     {query.created || query.pdfCreated || query.duplicated ? <p role="status" className="mt-4 rounded-xl border border-green-200/20 bg-green-300/10 p-4 text-sm text-green-100">המסמך נשמר. הקישורים האישיים זמינים בספרייה.</p> : null}
     {query.sent ? <p role="status" className="mt-4 rounded-xl border border-green-200/20 bg-green-300/10 p-4 text-sm text-green-100">המייל נשלח. מועד השליחה עודכן במעקב.</p> : null}
     {query.mailError ? <p role="alert" className="mt-4 rounded-xl bg-red-300/10 p-4 text-sm text-red-100">{mailErrors[query.mailError] || "שליחת המייל לא הושלמה. אפשר לנסות שוב או להעתיק את הקישור האישי."}</p> : null}
-    <nav className="workspace-navigation mt-5 flex gap-2 overflow-x-auto border-b border-white/10 pb-4" aria-label="ניווט באזור האישי">{tabs.map(([tab, label]) => <button key={tab} type="button" aria-current={activeTab === tab ? "page" : undefined} onClick={() => open(tab)} className={`rounded-xl px-4 py-3 text-sm font-bold ${activeTab === tab ? "bg-electric text-ink" : "text-silver hover:bg-white/5"}`}>{label}</button>)}<Link className="mr-auto px-3 py-3 text-sm text-silver underline" href="/work-agreement">מסמכים ציבוריים</Link></nav>
-    <div className="mt-6">
+    <div className="workspace-content">
       <div hidden={activeTab !== "quotes"}><QuotesWorkspace customers={customers} /></div>
       {activeTab === "overview" ? <DashboardOverview documents={documents} onOpenDocument={openDocument} onCreate={() => open("create")} /> : null}
       {creationVisited ? <div hidden={activeTab !== "create"}><CreateDocumentFlow key={createVersion} customers={customers} customer={customer} error={query.error} /></div> : null}
@@ -59,6 +81,7 @@ export function DashboardWorkspace({ documents, customers, siteUrl, twoFactorEna
       {activeTab === "documents" ? <DocumentLibrary key={`${libraryFilter}-${documentId}`} documents={documents} siteUrl={siteUrl} requestedFilter={libraryFilter} initialDocumentId={documentId} /> : null}
       {activeTab === "customers" ? <CustomerLibrary customers={customers} documents={documents} onCreateDocument={createForCustomer} onOpenDocument={openDocument} /> : null}
       {activeTab === "security" ? <SecurityPanel twoFactorEnabled={twoFactorEnabled} recoveryCodesRemaining={recoveryCodesRemaining} securityActivity={securityActivity} /> : null}
+    </div>
     </div>
   </div>;
 }

@@ -47,9 +47,10 @@ export function Header() {
           href="/#home"
           className="flex items-center gap-3 rounded-2xl"
           aria-label={`${siteConfig.name} - חזרה לראשי`}
+          onClick={() => setOpen(false)}
         >
           <Logo
-            variant="for-dark"
+            variant="for-light"
             className="brand-mark h-12 w-12 object-contain"
             priority
             sizes="48px"
@@ -60,7 +61,7 @@ export function Header() {
           </span>
         </Link>
 
-        <nav className={`${inWorkspace ? "hidden" : "hidden xl:flex"} items-center gap-1`} aria-label="ניווט ראשי">
+        <nav className={`${inWorkspace ? "hidden" : "public-desktop-nav hidden xl:flex"} items-center gap-1`} aria-label="ניווט ראשי">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -82,7 +83,7 @@ export function Header() {
 
           <button
             type="button"
-            className={`${inWorkspace ? "hidden" : "inline-flex"} h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white xl:hidden`}
+            className={`${inWorkspace ? "hidden" : "public-menu-button inline-flex"} h-11 w-11 items-center justify-center rounded-full border border-white/15 text-white xl:hidden`}
             aria-expanded={open}
             aria-controls="mobile-menu"
             aria-label={open ? "סגירת תפריט" : "פתיחת תפריט"}

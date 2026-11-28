@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { PrintDocumentButton } from "@/components/PrintDocumentButton";
+import { legalLinks } from "@/data/navigation";
 
 export function LegalPage({
   title,
@@ -10,13 +11,14 @@ export function LegalPage({
   children: ReactNode;
 }) {
   return (
-    <main id="main" className="section-y pt-28">
+    <main id="main" className="legal-page section-y pt-28">
       <article className="container-site max-w-4xl">
         <div className="no-print mb-5 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-silver-muted">
           <Link href="/" className="hover:text-electric-bright">
             חזרה לדף הבית
           </Link>
         </p><PrintDocumentButton /></div>
+        <nav className="legal-page-navigation no-print" aria-label="מידע ומדיניות">{legalLinks.map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}</nav>
         <div className="document-reading-paper rounded-2xl bg-white px-5 py-8 text-slate-900 shadow-2xl sm:px-10 sm:py-12">
         <h1 className="text-3xl font-bold text-slate-950 sm:text-4xl">{title}</h1>
         <p className="mt-3 border-b border-slate-200 pb-5 text-sm text-slate-500">מסמך לקריאה, הדפסה ושמירה. מומלץ להשלים את כל השדות לפני שימוש.</p>

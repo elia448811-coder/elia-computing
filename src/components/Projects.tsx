@@ -10,15 +10,7 @@ export function ProjectCards({ compact = false }: { compact?: boolean }) {
         <article key={project.id} className={`project-card project-${project.id}`} style={{ "--project-color": project.color } as CSSProperties}>
           <div className="project-art">
             <span className="project-index">0{index + 1}</span>
-            <div className="project-browser">
-              <div className="project-browser-bar" aria-hidden="true">
-                <span className="project-browser-dots"><i /><i /><i /></span>
-                <span dir="ltr">{new URL(project.href).hostname}</span>
-              </div>
-              <div className="project-browser-screen">
-                <Image src={project.image} alt={`צילום מסך של ${project.name}`} width={1440} height={900} sizes={compact ? "(max-width: 600px) 90vw, (max-width: 1023px) 45vw, 45vw" : "(max-width: 600px) 90vw, 45vw"} loading={!compact && index === 0 ? "eager" : "lazy"} unoptimized />
-              </div>
-            </div>
+            <Image className="project-screenshot" src={project.image} alt={`צילום מסך של ${project.name}`} width={1440} height={900} sizes="(max-width: 600px) 94vw, 46vw" loading={!compact && index === 0 ? "eager" : "lazy"} unoptimized />
           </div>
           <div className="project-card-body">
             <p className="project-category">{project.category}</p>

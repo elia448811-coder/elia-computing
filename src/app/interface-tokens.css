@@ -1,0 +1,23 @@
+/* Shared foundation for the public website and business workspace. */
+:root {
+  --ui-bg: #f4f7f8;
+  --ui-paper: #ffffff;
+  --ui-ink: #142a36;
+  --ui-text: #344c58;
+  --ui-muted: #5d7280;
+  --ui-line: #dbe4e7;
+  --ui-accent: #0c6d62;
+  --ui-accent-hover: #07564d;
+  --ui-accent-soft: #e6f3ee;
+  --ui-shadow: 0 16px 48px rgb(20 42 54 / 7%);
+}
+html, body { overflow-x: clip; }
+body { background: var(--ui-bg); color: var(--ui-ink); }
+:is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--ui-accent);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

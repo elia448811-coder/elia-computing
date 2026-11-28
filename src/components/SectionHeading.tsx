@@ -11,7 +11,7 @@ export function SectionHeading({
   eyebrow,
   title,
   description,
-  align = "center",
+  align = "start",
 }: SectionHeadingProps) {
   const alignClass = align === "center" ? "text-center mx-auto" : "text-start";
 
